@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Panel RRHH</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <style>
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--ink);
+      min-height:100vh;
+      background:
+        radial-gradient(1200px 700px at 15% 35%, #0b61c955 0%, transparent 55%),
+        radial-gradient(900px 600px at 80% 60%, #2ea7ff44 0%, transparent 55%),
+        linear-gradient(120deg, var(--bg1), var(--bg2));
+      overflow:hidden;
+    }
+
+    /* layout */
+    .app{
+      display:grid;
+      grid-template-columns: 260px 1fr;
+      min-height:100vh;
+    }
+
+    /* sidebar */
+    .sidebar{
+      padding:18px 16px;
+      border-right:1px solid var(--line);
+      background: rgba(255,255,255,.06);
+      backdrop-filter: blur(10px);
+    }
+    .brand{
+      display:flex; gap:10px; align-items:center;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      margin-bottom:16px;
+    }
+    .brand h1{
+      margin:0;
+      color:#fff;
+      font-size:14px;
+      letter-spacing:.3px;
+      line-height:1.1;
+    }
+    .brand small{
+      display:block;
+      margin-top:2px;
+      color: rgba(255,255,255,.75);
+      font-size:12px;
+      font-weight:500;
+    }
+
+    .nav{
+      margin-top:14px;
+      display:grid;
+      gap:8px;
+    }
+    .nav a{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      color: rgba(255,255,255,.88);
+      text-decoration:none;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.05);
+      font-size:13px;
+    }
+    .nav a.active{
+      background: linear-gradient(90deg, rgba(11,97,201,.35), rgba(46,167,255,.25));
+      border-color: rgba(46,167,255,.25);
+      color:#fff;
+    }
+    .dot{
+      width:10px; height:10px; border-radius:999px;
+      background: rgba(255,255,255,.45);
+    }
+    .active .dot{
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+    }
+
+    /* main */
+    .main{
+      display:flex;
+      flex-direction:column;
+      min-width:0;
+    }
+    .topbar{
+      height:64px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: 0 22px;
+      border-bottom:1px solid var(--line);
+      background: rgba(255,255,255,.06);
+      backdrop-filter: blur(10px);
+    }
+    .welcome{
+      color:#fff;
+      font-weight:800;
+      letter-spacing:.2px;
+    }
+    .who{
+      color: rgba(255,255,255,.75);
+      font-size:12px;
+      margin-top:3px;
+    }
+    .top-right{
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.12);
+      color:#fff;
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .badge b{ font-weight:800; }
+
+    .content{
+      padding: 22px;
+      overflow:auto;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.4fr .9fr;
+      gap:16px;
+    }
+
+    .card{
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .cardhead{
+      padding: 14px 16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      border-bottom:1px solid #eee;
+    }
+    .cardhead h2{
+      margin:0;
+      font-size:14px;
+      color:#0b3a6e;
+      letter-spacing:.2px;
+    }
+    .cardbody{
+      padding: 14px 16px;
+      font-size:13px;
+      color:#333;
+    }
+
+    .list{
+      display:grid;
+      gap:10px;
+    }
+    .item{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 12px 12px;
+      border:1px solid #eee;
+      border-radius: 14px;
+      background:#fff;
+    }
+    .item .meta{
+      min-width:0;
+    }
+    .item .meta b{
+      display:block;
+      font-size:13px;
+      color:#2a2a2a;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .item .meta span{
+      display:block;
+      margin-top:2px;
+      color: var(--muted);
+      font-size:12px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .tag{
+      padding:6px 10px;
+      border-radius:999px;
+      font-size:12px;
+      border:1px solid #dbeafe;
+      background:#eff6ff;
+      color:#0b3a6e;
+      white-space:nowrap;
+    }
+
+    .btn{
+      border:none;
+      cursor:pointer;
+      padding:10px 14px;
+      border-radius:999px;
+      font-weight:800;
+      color:#fff;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      box-shadow: 0 12px 24px rgba(11,97,201,.22);
+    }
+    .footer-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      padding: 14px 16px;
+      border-top:1px solid #eee;
+      background: rgba(255,255,255,.65);
+    }
+    .footer-actions form{ margin:0; }
+
+    @media (max-width: 980px){
+      .app{ grid-template-columns: 1fr; }
+      .sidebar{ display:none; }
+      .grid{ grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="logo" src="{% static 'img/logo.png' %}" alt="Sinergia Financiera">
+        <div>
+          <h1>Sinergia Financiera</h1>
+          <small>Panel RRHH</small>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a class="active" href="#"><span class="dot"></span> Dashboard</a>
+        <a href="#"><span class="dot"></span> Procesos</a>
+        <a href="#"><span class="dot"></span> Reportes</a>
+      </nav>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="welcome">Bienvenido RRHH</div>
+          <div class="who">Usuario: <b>{{ request.user.username }}</b></div>
+        </div>
+
+        <div class="top-right">
+          <div class="badge">Rol: <b>RRHH</b></div>
+        </div>
+      </header>
+
+      <section class="content">
+        <div class="grid">
+          <!-- Columna grande -->
+          <div class="card">
+            <div class="cardhead">
+              <h2>Resumen</h2>
+              <span class="tag">Sesión activa</span>
+            </div>
+            <div class="cardbody">
+              <div class="list">
+                <div class="item">
+                  <div class="meta">
+                    <b>Acceso al sistema</b>
+                    <span>Panel básico de RRHH </span>
+                  </div>
+                  <span class="tag">OK</span>
+                </div>
+
+                <div class="item">
+                  <div class="meta">
+                    <b>Acción disponible</b>
+                    <span>Por ahora RRHH solo puede cerrar sesión</span>
+                  </div>
+                  <span class="tag">Mínimo</span>
+                </div>
+              </div>
+            </div>
+            <div class="footer-actions">
+              <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button class="btn" type="submit">Cerrar sesión</button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Columna derecha -->
+          <div class="card">
+            <div class="cardhead">
+              <h2>Actividad</h2>
+              <span class="tag">Hoy</span>
+            </div>
+            <div class="cardbody">
+              <div class="list">
+                <div class="item">
+                  <div class="meta">
+                    <b>Login realizado</b>
+                    <span>Acceso exitoso</span>
+                  </div>
+                  <span class="tag">✔</span>
+                </div>
+                <div class="item">
+                  <div class="meta">
+                    <b>Estado</b>
+                    <span>Listo para siguiente sprint</span>
+                  </div>
+                  <span class="tag">🚀</span>
+                </div>
+              </div>
+            </div>
+            <div class="footer-actions">
+              <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button class="btn" type="submit">Cerrar sesión</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,10 @@
+usuario root
+correo root@onboarding.com
+pass Root12345
+
+
+rrhh
+Root12345
+
+carlos.gomez
+Root12345
