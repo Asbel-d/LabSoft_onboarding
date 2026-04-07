@@ -1,0 +1,158 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if modo == "editar" %}Editar{% else %}Crear{% endif %} Ingreso</title>
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <style>
+    body{ margin:0; font-family:system-ui; background:linear-gradient(120deg,var(--bg1),var(--bg2)); min-height:100vh; padding:24px; }
+    .wrap{ max-width:900px; margin:0 auto; }
+    .card{ background:#fff; border-radius:16px; box-shadow:var(--shadow); overflow:hidden; }
+    .head{ padding:16px 18px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; }
+    .head h2{ margin:0; color:#0b3a6e; font-size:16px; }
+    .body{ padding:16px 18px; }
+    label{ font-size:12px; color:#555; display:block; margin:10px 0 6px; }
+    input, select{ width:100%; padding:11px 12px; border-radius:12px; border:1px solid #e6e6e6; background:#fff; }
+    .row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .info{ margin-top:10px; padding:10px 12px; border-radius:12px; background:#eff6ff; border:1px solid #dbeafe; color:#0b3a6e; font-size:13px; }
+    .suggestions{ margin-top:10px; padding:12px; border-radius:14px; border:1px solid #dbeafe; background:#f8fbff; display:grid; gap:10px; }
+    .suggestions h3{ margin:0; font-size:13px; color:#0b3a6e; }
+    .suggestion-list{ display:flex; flex-wrap:wrap; gap:8px; }
+    .chip{ padding:7px 10px; border-radius:999px; font-size:12px; border:1px solid #dbeafe; background:#eff6ff; color:#0b3a6e; }
+    .chip.empty{ background:#f6f6f6; border-color:#e8e8e8; color:#666; }
+    .actions{ padding:14px 18px; border-top:1px solid #eee; display:flex; gap:10px; justify-content:flex-end; }
+    .btn{ border:none; cursor:pointer; padding:10px 14px; border-radius:999px; font-weight:800; }
+    .btn.primary{ color:#fff; background:linear-gradient(90deg,var(--accent2),var(--accent)); }
+    .btn.ghost{ background:#eff6ff; border:1px solid #dbeafe; color:#0b3a6e; text-decoration:none; display:inline-flex; align-items:center; }
+    @media(max-width:700px){ .row{ grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="head">
+        <h2>{% if modo == "editar" %}Editar{% else %}Crear{% endif %} proceso de ingreso</h2>
+        <a class="btn ghost" href="{% url 'rrhh_ingresos_listar' %}">Volver</a>
+      </div>
+
+      <form method="post">
+        {% csrf_token %}
+        <div class="body">
+          <div class="row">
+            <div>
+              <label>Código proceso</label>
+              {{ form.codigo_proceso }}
+            </div>
+            <div>
+              <label>Fecha de ingreso</label>
+              {{ form.fecha_ingreso }}
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>Nombre empleado</label>
+              {{ form.nombre_empleado }}
+            </div>
+            <div>
+              <label>Tipo documento</label>
+              {{ form.tipo_documento }}
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>Documento</label>
+              {{ form.documento }}
+            </div>
+            <div>
+              <label>Puesto organizacional</label>
+              {{ form.puesto_organizacional }}
+            </div>
+          </div>
+
+          <div class="info">
+            <b>Jefe del area:</b>
+            <span id="jefe_text">Selecciona un puesto…</span>
+          </div>
+
+          <div class="suggestions">
+            <h3>Sugerencias automáticas</h3>
+            <div>
+              <b>Cursos:</b>
+              <div class="suggestion-list" id="suggested_courses">
+                <span class="chip empty">Selecciona un puesto para ver sugerencias</span>
+              </div>
+            </div>
+            <div>
+              <b>Aplicativos:</b>
+              <div class="suggestion-list" id="suggested_apps">
+                <span class="chip empty">Selecciona un puesto para ver sugerencias</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" type="submit">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+  const puestoSelect = document.getElementById("id_puesto_organizacional");
+  const jefeText = document.getElementById("jefe_text");
+  const suggestedCourses = document.getElementById("suggested_courses");
+  const suggestedApps = document.getElementById("suggested_apps");
+
+  function renderItems(container, items){
+    if(!container) return;
+    if(!items || !items.length){
+      container.textContent = "";
+      const empty = document.createElement("span");
+      empty.className = "chip empty";
+      empty.textContent = "Sin sugerencias por ahora";
+      container.appendChild(empty);
+      return;
+    }
+    container.textContent = "";
+    items.forEach((item) => {
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      chip.textContent = item.nombre;
+      container.appendChild(chip);
+    });
+  }
+
+  async function cargarJefe(){
+    const puestoId = puestoSelect.value;
+    if(!puestoId){
+      jefeText.textContent = "Selecciona un puesto…";
+      renderItems(suggestedCourses, []);
+      renderItems(suggestedApps, []);
+      return;
+    }
+    const res = await fetch(`/api/puestos/${puestoId}/info/`);
+    const data = await res.json();
+
+    if(data.jefe_id){
+      jefeText.textContent = `Jefe: ${data.jefe_username} (Área: ${data.area_nombre})`;
+    }else{
+      jefeText.textContent = `Esta área no tiene jefe asignado (Área: ${data.area_nombre})`;
+    }
+
+    renderItems(suggestedCourses, data.sugerencias?.cursos || []);
+    renderItems(suggestedApps, data.sugerencias?.aplicativos || []);
+  }
+
+  if(puestoSelect){
+    puestoSelect.addEventListener("change", cargarJefe);
+    cargarJefe();
+  }
+</script>
+</body>
+</html>

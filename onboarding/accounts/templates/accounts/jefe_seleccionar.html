@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Jefe Crédito · Seleccionar</title>
+  <title>Panel Jefe · Seleccionar</title>
   {% load static %}
   <link rel="stylesheet" href="{% static 'css/theme.css' %}">
   <style>
@@ -20,7 +20,7 @@
       overflow:hidden;
     }
 
-    .app{ display:grid; grid-template-columns:260px 1fr; min-height:100vh; }
+    .app{ display:grid; grid-template-columns:260px 1fr; height:100vh; }
     .sidebar{
       padding:18px 16px;
       border-right:1px solid var(--line);
@@ -54,7 +54,7 @@
     .dot{ width:10px; height:10px; border-radius:999px; background: rgba(255,255,255,.45); }
     .active .dot{ background: linear-gradient(135deg, var(--accent2), var(--accent)); }
 
-    .main{ display:flex; flex-direction:column; min-width:0; }
+    .main{ display:flex; flex-direction:column; min-width:0; min-height:0; }
     .topbar{
       height:64px;
       display:flex; align-items:center; justify-content:space-between;
@@ -75,7 +75,13 @@
     }
     .badge b{ font-weight:900; }
 
-    .content{ padding: 22px; overflow:auto; }
+    .content{
+      flex:1;
+      min-height:0;
+      padding: 22px;
+      overflow-y:auto;
+      overflow-x:hidden;
+    }
 
     .grid{
       display:grid;
@@ -115,7 +121,6 @@
     .meta b{ color:#2a2a2a; }
     .muted{ color: var(--muted); font-size:12px; }
 
-    /* form */
     form{ margin:0; }
     .section-title{
       margin: 12px 0 8px;
@@ -178,6 +183,28 @@
       background:#fafafa;
       margin-top:10px;
     }
+    .suggestions{
+      margin-top:12px;
+      padding:12px;
+      border:1px solid #dbeafe;
+      background:#f8fbff;
+      border-radius:14px;
+    }
+    .suggestions h3{
+      margin:0 0 8px;
+      font-size:13px;
+      color:#0b3a6e;
+    }
+    .suggestion-list{ display:flex; flex-wrap:wrap; gap:8px; }
+    .chip{
+      padding:7px 10px;
+      border-radius:999px;
+      font-size:12px;
+      border:1px solid #dbeafe;
+      background:#eff6ff;
+      color:#0b3a6e;
+    }
+    .chip.empty{ background:#f6f6f6; border-color:#e8e8e8; color:#666; }
 
     .footer-actions{
       display:flex; justify-content:flex-end; gap:10px;
@@ -196,24 +223,22 @@
 
 <body>
   <div class="app">
-    <!-- Sidebar -->
     <aside class="sidebar">
       <div class="brand">
         <img class="logo" src="{% static 'img/logo.png' %}" alt="Sinergia Financiera">
         <div>
           <h1>Sinergia Financiera</h1>
-          <small>Jefe Crédito</small>
+          <small>Jefe de Área</small>
         </div>
       </div>
 
       <nav class="nav">
-        <a href="{% url 'panel_jefe_credito' %}"><span class="dot"></span> Dashboard</a>
-        <a class="active" href="#"><span class="dot"></span> Selección</a>
-        <a href="#"><span class="dot"></span> Historial</a>
+        <a href="{% url 'panel_jefe' %}"><span class="dot"></span> Dashboard</a>
+        <a class="active" href="{% url 'jefe_seleccionar' ingreso.id %}"><span class="dot"></span> Selección</a>
+        <a href="{% url 'panel_jefe' %}"><span class="dot"></span> Historial</a>
       </nav>
     </aside>
 
-    <!-- Main -->
     <main class="main">
       <header class="topbar">
         <div>
@@ -227,7 +252,6 @@
 
       <section class="content">
         <div class="grid">
-          <!-- Formulario -->
           <div class="card">
             <div class="cardhead">
               <h2>Asignación para el ingreso</h2>
@@ -240,28 +264,50 @@
                 <div class="muted"><b>Documento:</b> {{ ingreso.documento }}</div>
               </div>
 
+              <div class="suggestions">
+                <h3>Sugerencia automática según el área</h3>
+                <div style="margin-bottom:8px; font-size:12px; color:#5b5b5b;">Cursos recomendados</div>
+                <div class="suggestion-list">
+                  {% for item in sugeridos_cursos %}
+                    <span class="chip">{{ item.nombre }}</span>
+                  {% empty %}
+                    <span class="chip empty">No hay sugerencias aún</span>
+                  {% endfor %}
+                </div>
+                <div style="margin:10px 0 8px; font-size:12px; color:#5b5b5b;">Aplicativos</div>
+                <div class="suggestion-list">
+                  {% for item in sugeridos_aplicativos %}
+                    <span class="chip">{{ item.nombre }}</span>
+                  {% empty %}
+                    <span class="chip empty">No hay sugerencias aún</span>
+                  {% endfor %}
+                </div>
+                <div class="actions" style="justify-content:flex-start; margin-top:12px;">
+                  <button class="btn secondary" type="button" id="applySuggestionsBtn">Aplicar sugerencias</button>
+                </div>
+              </div>
+
               <form method="post">
                 {% csrf_token %}
 
                 <div class="section-title">Cursos</div>
-                <div class="checks">
+                <div class="checks" id="courses_checks">
                   {{ form.cursos }}
                 </div>
 
                 <div class="section-title">Aplicativos</div>
-                <div class="checks">
+                <div class="checks" id="apps_checks">
                   {{ form.aplicativos }}
                 </div>
 
                 <div class="actions">
-                  <a class="btn secondary" href="{% url 'panel_jefe_credito' %}">Volver</a>
+                  <a class="btn secondary" href="{% url 'panel_jefe' %}">Volver</a>
                   <button class="btn" type="submit">Guardar</button>
                 </div>
               </form>
             </div>
           </div>
 
-          <!-- Lateral info + logout -->
           <div class="card">
             <div class="cardhead">
               <h2>Guía rápida</h2>
@@ -295,5 +341,34 @@
       </section>
     </main>
   </div>
+
+  {{ sugeridos_cursos_ids|json_script:"suggested-course-ids" }}
+  {{ sugeridos_aplicativos_ids|json_script:"suggested-app-ids" }}
+
+  <script>
+    const applyBtn = document.getElementById("applySuggestionsBtn");
+    const suggestedCourseIdsNode = document.getElementById("suggested-course-ids");
+    const suggestedAppIdsNode = document.getElementById("suggested-app-ids");
+    const suggestedCourseIds = suggestedCourseIdsNode ? JSON.parse(suggestedCourseIdsNode.textContent) : [];
+    const suggestedAppIds = suggestedAppIdsNode ? JSON.parse(suggestedAppIdsNode.textContent) : [];
+
+    function checkByValues(containerId, values){
+      const container = document.getElementById(containerId);
+      if(!container) return;
+      const inputs = container.querySelectorAll('input[type="checkbox"]');
+      inputs.forEach((input) => {
+        if(values.includes(String(input.value))){
+          input.checked = true;
+        }
+      });
+    }
+
+    if(applyBtn){
+      applyBtn.addEventListener("click", () => {
+        checkByValues("courses_checks", suggestedCourseIds.map((id) => String(id)));
+        checkByValues("apps_checks", suggestedAppIds.map((id) => String(id)));
+      });
+    }
+  </script>
 </body>
 </html>

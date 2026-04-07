@@ -17,8 +17,14 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from django.contrib.auth import views as auth_views
-from accounts.views import panel_rrhh, redireccion_por_rol
-from accounts.views import panel_jefe_credito, jefe_credito_seleccionar
+from accounts.views import (
+    panel_rrhh, redireccion_por_rol, panel_jefe, jefe_seleccionar,
+    rrhh_ingreso_crear, rrhh_ingreso_editar, rrhh_ingreso_cancelar, rrhh_ingresos_listar,
+    rrhh_asignar_cursos, panel_tecnologia, tecnologia_asignar_aplicativos,
+    panel_talento_humano, talento_confirmar_cursos,
+    panel_servicios, servicios_finalizar_ingreso,
+    puesto_info
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -26,6 +32,18 @@ urlpatterns = [
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
     path('rrhh/', redireccion_por_rol, name='redireccion_por_rol'),
     path('panel-rrhh/', panel_rrhh, name='panel_rrhh'),
-    path("jefe-credito/", panel_jefe_credito, name="panel_jefe_credito"),
-    path("jefe-credito/ingreso/<int:ingreso_id>/", jefe_credito_seleccionar, name="jefe_credito_seleccionar"),
+    path('panel-tecnologia/', panel_tecnologia, name='panel_tecnologia'),
+    path('panel-talento-humano/', panel_talento_humano, name='panel_talento_humano'),
+    path('panel-servicios/', panel_servicios, name='panel_servicios'),
+    path("jefe/", panel_jefe, name="panel_jefe"),
+    path("jefe/ingreso/<int:ingreso_id>/", jefe_seleccionar, name="jefe_seleccionar"),
+    path("api/puestos/<int:puesto_id>/info/", puesto_info, name="puesto_info"),
+    path("rrhh/ingresos/", rrhh_ingresos_listar, name="rrhh_ingresos_listar"),
+    path("rrhh/ingresos/<int:ingreso_id>/asignar-cursos/", rrhh_asignar_cursos, name="rrhh_asignar_cursos"),
+    path("rrhh/ingresos/crear/", rrhh_ingreso_crear, name="rrhh_ingreso_crear"),
+    path("rrhh/ingresos/<int:ingreso_id>/editar/", rrhh_ingreso_editar, name="rrhh_ingreso_editar"),
+    path("rrhh/ingresos/<int:ingreso_id>/cancelar/", rrhh_ingreso_cancelar, name="rrhh_ingreso_cancelar"),
+    path("tecnologia/ingresos/<int:ingreso_id>/asignar-aplicativos/", tecnologia_asignar_aplicativos, name="tecnologia_asignar_aplicativos"),
+    path("talento/ingresos/<int:ingreso_id>/confirmar-cursos/", talento_confirmar_cursos, name="talento_confirmar_cursos"),
+    path("servicios/ingresos/<int:ingreso_id>/finalizar/", servicios_finalizar_ingreso, name="servicios_finalizar_ingreso"),
 ]

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Panel Jefe Crédito</title>
+  <title>Panel Jefe</title>
   {% load static %}
   <link rel="stylesheet" href="{% static 'css/theme.css' %}">
   <style>
@@ -20,7 +20,7 @@
       overflow:hidden;
     }
 
-    .app{ display:grid; grid-template-columns:260px 1fr; min-height:100vh; }
+    .app{ display:grid; grid-template-columns:260px 1fr; height:100vh; }
     .sidebar{
       padding:18px 16px;
       border-right:1px solid var(--line);
@@ -54,7 +54,7 @@
     .dot{ width:10px; height:10px; border-radius:999px; background: rgba(255,255,255,.45); }
     .active .dot{ background: linear-gradient(135deg, var(--accent2), var(--accent)); }
 
-    .main{ display:flex; flex-direction:column; min-width:0; }
+    .main{ display:flex; flex-direction:column; min-width:0; min-height:0; }
     .topbar{
       height:64px;
       display:flex; align-items:center; justify-content:space-between;
@@ -75,7 +75,13 @@
     }
     .badge b{ font-weight:900; }
 
-    .content{ padding: 22px; overflow:auto; }
+    .content{
+      flex:1;
+      min-height:0;
+      padding: 22px;
+      overflow-y:auto;
+      overflow-x:hidden;
+    }
     .grid{ display:grid; grid-template-columns: 1.6fr .9fr; gap:16px; }
 
     .card{
@@ -139,6 +145,11 @@
       background: rgba(255,255,255,.65);
     }
     .footer-actions form{ margin:0; }
+    .focus-card{
+      outline: 2px solid #93c5fd;
+      box-shadow: 0 0 0 5px #dbeafe;
+      transition: box-shadow .2s ease;
+    }
 
     @media (max-width: 1100px){
       .grid{ grid-template-columns: 1fr; }
@@ -159,14 +170,14 @@
         <img class="logo" src="{% static 'img/logo.png' %}" alt="Sinergia Financiera">
         <div>
           <h1>Sinergia Financiera</h1>
-          <small>Jefe Crédito</small>
+          <small>Jefe de Área · {{ areas_texto }}</small>
         </div>
       </div>
 
       <nav class="nav">
-        <a class="active" href="#"><span class="dot"></span> Dashboard</a>
-        <a href="#"><span class="dot"></span> Ingresos</a>
-        <a href="#"><span class="dot"></span> Asignaciones</a>
+        <a class="nav-link active" data-target="dashboard" href="#dashboard"><span class="dot"></span> Dashboard</a>
+        <a class="nav-link" data-target="ingresos" href="#ingresos"><span class="dot"></span> Ingresos</a>
+        <a class="nav-link" data-target="resumen" href="#resumen"><span class="dot"></span> Resumen</a>
       </nav>
     </aside>
 
@@ -174,22 +185,22 @@
     <main class="main">
       <header class="topbar">
         <div>
-          <div class="welcome">Bienvenido Jefe de Crédito</div>
-          <div class="who">Usuario: <b>{{ request.user.username }}</b> · Área: <b>{{ area }}</b></div>
+          <div class="welcome">Bienvenido, Jefe</div>
+          <div class="who">Usuario: <b>{{ request.user.username }}</b> · Áreas: <b>{{ areas_texto }}</b></div>
         </div>
 
         <div class="top-right">
-          <div class="badge">Rol: <b>JEFE_CREDITO</b></div>
+          <div class="badge">Rol: <b>JEFE</b></div>
         </div>
       </header>
 
-      <section class="content">
+      <section class="content" id="dashboard">
         <div class="grid">
           <!-- Tabla ingresos -->
-          <div class="card">
+          <div class="card" id="ingresos">
             <div class="cardhead">
-              <h2>Ingresos del área</h2>
-              <span class="tag">Solo crédito</span>
+              <h2>Ingresos asignados</h2>
+              <span class="tag">Áreas: {{ areas_texto }}</span>
             </div>
 
             <div class="cardbody">
@@ -197,6 +208,7 @@
                 <div class="trh">
                   <div>Código</div>
                   <div>Empleado</div>
+                  <div class="hide-sm">Área</div>
                   <div class="hide-sm">Fecha</div>
                   <div>Acción</div>
                 </div>
@@ -209,9 +221,10 @@
                         <div>{{ i.nombre_empleado }}</div>
                         <div class="muted">{{ i.documento }}</div>
                       </div>
+                      <div class="hide-sm">{{ i.puesto_organizacional.area.nombre }}</div>
                       <div class="hide-sm">{{ i.fecha_ingreso }}</div>
                       <div>
-                        <a class="btn" href="{% url 'jefe_credito_seleccionar' i.id %}">
+                        <a class="btn" href="{% url 'jefe_seleccionar' i.id %}">
                           Escoger cursos y apps
                         </a>
                       </div>
@@ -219,7 +232,7 @@
                   {% endfor %}
                 {% else %}
                   <div class="tr">
-                    <div class="muted" style="grid-column:1/-1;">No hay ingresos para esta área aún.</div>
+                    <div class="muted" style="grid-column:1/-1;">No hay ingresos pendientes por seleccionar en este momento.</div>
                   </div>
                 {% endif %}
               </div>
@@ -234,13 +247,35 @@
           </div>
 
           <!-- Panel lateral -->
-          <div class="card">
+          <div class="card" id="resumen">
             <div class="cardhead">
               <h2>Resumen</h2>
-            
             </div>
+
             <div class="cardbody">
-              <p style="margin:0 0 10px;">Desde este panel puedes asignar <b>cursos</b> y <b>aplicativos</b> a un ingreso.</p>
+              <p style="margin:0 0 10px;">
+                Desde este panel puedes asignar <b>cursos</b> y <b>aplicativos</b> a los ingresos de las áreas bajo tu responsabilidad.
+              </p>
+
+              <div class="table" style="margin-bottom:12px;">
+                <div class="tr">
+                  <div><b>Áreas</b></div>
+                  <div class="muted" style="grid-column:2/-1;">{{ areas_texto }}</div>
+                </div>
+                <div class="tr">
+                  <div><b>Ingresos</b></div>
+                  <div class="muted" style="grid-column:2/-1;">{{ total_ingresos|default:"0" }} registros visibles</div>
+                </div>
+                <div class="tr">
+                  <div><b>Pendientes</b></div>
+                  <div class="muted" style="grid-column:2/-1;">{{ pendientes_jefe|default:"0" }} en estado PENDIENTE_JEFE</div>
+                </div>
+                <div class="tr">
+                  <div><b>En ejecución</b></div>
+                  <div class="muted" style="grid-column:2/-1;">{{ en_ejecucion|default:"0" }} en estado EN_EJECUCION</div>
+                </div>
+              </div>
+
               <div class="table">
                 <div class="tr">
                   <div><b>Acción</b></div>
@@ -248,7 +283,9 @@
                 </div>
                 <div class="tr">
                   <div><b>Registra</b></div>
-                  <div class="muted" style="grid-column:2/-1;">Guarda en tablas de asignación (ingreso_curso / ingreso_aplicacion).</div>
+                  <div class="muted" style="grid-column:2/-1;">
+                    Guarda en tablas de asignación (ingreso_curso / ingreso_aplicacion).
+                  </div>
                 </div>
               </div>
             </div>
@@ -264,5 +301,30 @@
       </section>
     </main>
   </div>
+
+  <script>
+    const content = document.querySelector(".content");
+    const navLinks = document.querySelectorAll(".nav-link");
+
+    function focusSection(sectionId){
+      const section = document.getElementById(sectionId);
+      if(!section || !content) return;
+
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+      section.classList.add("focus-card");
+      setTimeout(() => section.classList.remove("focus-card"), 800);
+
+      navLinks.forEach((link) => {
+        link.classList.toggle("active", link.dataset.target === sectionId);
+      });
+    }
+
+    navLinks.forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        focusSection(link.dataset.target);
+      });
+    });
+  </script>
 </body>
 </html>

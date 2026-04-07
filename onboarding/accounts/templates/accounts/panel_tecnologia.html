@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Panel Tecnologia</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <style>
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--ink);
+      min-height:100vh;
+      background:
+        radial-gradient(1200px 700px at 15% 35%, #0b61c955 0%, transparent 55%),
+        radial-gradient(900px 600px at 80% 60%, #2ea7ff44 0%, transparent 55%),
+        linear-gradient(120deg, var(--bg1), var(--bg2));
+      overflow:hidden;
+    }
+
+    .app{ display:grid; grid-template-columns:260px 1fr; height:100vh; }
+    .sidebar{
+      padding:18px 16px;
+      border-right:1px solid var(--line);
+      background: rgba(255,255,255,.06);
+      backdrop-filter: blur(10px);
+    }
+    .brand{
+      display:flex; gap:10px; align-items:center;
+      padding:10px 12px; border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      margin-bottom:16px;
+    }
+    .brand h1{ margin:0; color:#fff; font-size:14px; letter-spacing:.3px; line-height:1.1; }
+    .brand small{ display:block; margin-top:2px; color: rgba(255,255,255,.75); font-size:12px; font-weight:500; }
+
+    .nav{ margin-top:14px; display:grid; gap:8px; }
+    .nav a{
+      display:flex; align-items:center; gap:10px;
+      padding:10px 12px; border-radius:12px;
+      color: rgba(255,255,255,.88); text-decoration:none;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.05);
+      font-size:13px;
+    }
+    .nav a.active{
+      background: linear-gradient(90deg, rgba(11,97,201,.35), rgba(46,167,255,.25));
+      border-color: rgba(46,167,255,.25);
+      color:#fff;
+    }
+
+    .main{ display:flex; flex-direction:column; min-width:0; min-height:0; }
+    .topbar{
+      height:64px;
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 0 22px;
+      border-bottom:1px solid var(--line);
+      background: rgba(255,255,255,.06);
+      backdrop-filter: blur(10px);
+    }
+    .welcome{ color:#fff; font-weight:900; letter-spacing:.2px; }
+    .who{ color: rgba(255,255,255,.75); font-size:12px; margin-top:3px; }
+    .badge{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 10px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.12);
+      color:#fff; font-size:12px; white-space:nowrap;
+    }
+    .top-right{ display:flex; align-items:center; gap:10px; }
+    .btn-logout{
+      border:none; cursor:pointer;
+      padding:9px 14px;
+      border-radius:999px;
+      font-weight:800;
+      background:#eff6ff;
+      border:1px solid #dbeafe;
+      color:#0b3a6e;
+    }
+
+    .content{ flex:1; min-height:0; padding:22px; overflow:auto; }
+    .card{
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .cardhead{
+      padding: 14px 16px;
+      display:flex; align-items:center; justify-content:space-between;
+      border-bottom:1px solid #eee;
+    }
+    .cardhead h2{ margin:0; font-size:14px; color:#0b3a6e; }
+    .cardbody{ padding:14px 16px; }
+
+    .table{ border:1px solid #eee; border-radius:14px; overflow:hidden; background:#fff; }
+    .trh, .tr{
+      display:grid;
+      grid-template-columns: 120px 1fr 180px 160px;
+      gap:10px;
+      padding: 12px 14px;
+      align-items:center;
+    }
+    .trh{ background:#eff6ff; color:#0b3a6e; font-weight:900; font-size:12px; border-bottom:1px solid #eee; }
+    .tr{ border-bottom:1px solid #f0f0f0; }
+    .tr:last-child{ border-bottom:none; }
+    .muted{ color:#777; font-size:12px; }
+
+    .btn{
+      border:none; cursor:pointer;
+      padding:9px 12px;
+      border-radius:999px;
+      font-weight:900;
+      color:#fff;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      text-decoration:none;
+      display:inline-block;
+      text-align:center;
+      font-size:12px;
+      white-space:nowrap;
+    }
+
+    @media (max-width: 980px){
+      .app{ grid-template-columns: 1fr; }
+      .sidebar{ display:none; }
+      .trh, .tr{ grid-template-columns: 120px 1fr; }
+      .hide-sm{ display:none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="logo" src="{% static 'img/logo.png' %}" alt="Sinergia Financiera">
+        <div>
+          <h1>Sinergia Financiera</h1>
+          <small>Soporte Tecnico (TI)</small>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a class="active" href="{% url 'panel_tecnologia' %}">Panel de aplicativos</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="welcome">Soporte Tecnico - Instalacion de aplicativos</div>
+          <div class="who">Usuario: <b>{{ request.user.username }}</b> - Rol/Grupo: <b>TECNOLOGIA</b></div>
+        </div>
+        <div class="top-right">
+          <div class="badge">Pendientes: <b>{{ pendientes_instalacion }}</b></div>
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button class="btn-logout" type="submit">Cerrar sesión</button>
+          </form>
+        </div>
+      </header>
+
+      <section class="content">
+        <div class="card">
+          <div class="cardhead">
+            <h2>Solicitudes en ejecucion para instalar aplicativos</h2>
+          </div>
+          <div class="cardbody">
+            <div class="table">
+              <div class="trh">
+                <div>Proceso</div>
+                <div>Empleado</div>
+                <div class="hide-sm">Area</div>
+                <div>Accion</div>
+              </div>
+
+              {% if ingresos %}
+                {% for i in ingresos %}
+                  <div class="tr">
+                    <div><b>{{ i.codigo_proceso }}</b></div>
+                    <div>
+                      <div>{{ i.nombre_empleado }}</div>
+                      <div class="muted">{{ i.documento }}</div>
+                    </div>
+                    <div class="hide-sm">{{ i.puesto_organizacional.area.nombre }}</div>
+                    <div>
+                      <a class="btn" href="{% url 'tecnologia_asignar_aplicativos' i.id %}">Instalar aplicativos</a>
+                    </div>
+                  </div>
+                {% endfor %}
+              {% else %}
+                <div class="tr">
+                  <div class="muted" style="grid-column:1/-1;">No hay solicitudes pendientes para tecnologia.</div>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

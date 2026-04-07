@@ -1,0 +1,113 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RRHH · Procesos</title>
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <style>
+    body{ margin:0; font-family:system-ui; background:linear-gradient(120deg,var(--bg1),var(--bg2)); min-height:100vh; padding:24px; }
+    .wrap{ max-width:1100px; margin:0 auto; }
+    .card{ background:#fff; border-radius:16px; box-shadow:var(--shadow); overflow:hidden; }
+    .head{ padding:16px 18px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+    .head h2{ margin:0; color:#0b3a6e; font-size:16px; }
+    .btn{ border:none; cursor:pointer; padding:10px 14px; border-radius:999px; font-weight:800; text-decoration:none; display:inline-flex; align-items:center; }
+    .btn.primary{ color:#fff; background:linear-gradient(90deg,var(--accent2),var(--accent)); }
+    .btn.ghost{ background:#eff6ff; border:1px solid #dbeafe; color:#0b3a6e; }
+    .body{ padding:14px 18px; }
+    form.filter{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    select{ padding:10px 12px; border-radius:12px; border:1px solid #e6e6e6; background:#fff; font-size:13px; min-width:240px; }
+    table{ width:100%; border-collapse:separate; border-spacing:0 10px; }
+    th{ text-align:left; font-size:12px; color:#666; padding:8px 10px; }
+    td{ padding:12px 10px; background:#fff; border-top:1px solid #eee; border-bottom:1px solid #eee; }
+    tr td:first-child{ border-left:1px solid #eee; border-top-left-radius:14px; border-bottom-left-radius:14px; }
+    tr td:last-child{ border-right:1px solid #eee; border-top-right-radius:14px; border-bottom-right-radius:14px; }
+    .tag{ padding:6px 10px; border-radius:999px; font-size:12px; border:1px solid #dbeafe; background:#eff6ff; color:#0b3a6e; white-space:nowrap; }
+    .actions{ display:flex; gap:8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="head">
+        <h2>Procesos de ingreso (RRHH)</h2>
+
+        <form class="filter" method="get">
+          <select name="area">
+            <option value="">-- Todas las áreas --</option>
+            {% for a in areas %}
+              <option value="{{ a.id }}" {% if area_id == a.id|stringformat:"s" %}selected{% endif %}>
+                {{ a.nombre }}
+              </option>
+            {% endfor %}
+          </select>
+          <select name="estado">
+            <option value="">-- Todos los estados --</option>
+            <option value="CREADO_RRHH" {% if estado == "CREADO_RRHH" %}selected{% endif %}>CREADO_RRHH</option>
+            <option value="PENDIENTE_JEFE" {% if estado == "PENDIENTE_JEFE" %}selected{% endif %}>PENDIENTE_JEFE</option>
+            <option value="EN_EJECUCION" {% if estado == "EN_EJECUCION" %}selected{% endif %}>EN_EJECUCION</option>
+            <option value="FINALIZADO" {% if estado == "FINALIZADO" %}selected{% endif %}>FINALIZADO</option>
+            <option value="CANCELADO" {% if estado == "CANCELADO" %}selected{% endif %}>CANCELADO</option>
+          </select>
+          <button class="btn ghost" type="submit">Filtrar</button>
+          <a class="btn primary" href="{% url 'rrhh_ingreso_crear' %}">Crear ingreso</a>
+          <a class="btn ghost" href="{% url 'panel_rrhh' %}">Volver</a>
+        </form>
+      </div>
+
+      <div class="body">
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Empleado</th>
+              <th>Área</th>
+              <th>Jefe</th>
+              <th>Estado</th>
+              <th style="width:220px;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for i in ingresos %}
+              <tr>
+                <td>{{ i.codigo_proceso }}</td>
+                <td>
+                  <b>{{ i.nombre_empleado }}</b><br>
+                  <span style="color:#777;font-size:12px;">
+                    {{ i.tipo_documento }} {{ i.documento }}
+                  </span>
+                </td>
+                <td>{{ i.puesto_organizacional.area.nombre }}</td>
+                <td>
+                  {% if i.puesto_organizacional.area.jefe_usuario %}
+                    {{ i.puesto_organizacional.area.jefe_usuario.username }}
+                  {% else %}
+                    Sin asignar
+                  {% endif %}
+                </td>
+                <td><span class="tag">{{ i.estado }}</span></td>
+                <td>
+                  <div class="actions">
+                    {% if i.estado == "EN_EJECUCION" %}
+                      <a class="btn primary" href="{% url 'rrhh_asignar_cursos' i.id %}">Asignar cursos</a>
+                    {% endif %}
+                    <a class="btn ghost" href="{% url 'rrhh_ingreso_editar' i.id %}">Editar</a>
+                    <a class="btn ghost" href="{% url 'rrhh_ingreso_cancelar' i.id %}">Cancelar</a>
+                  </div>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6" style="background:#fff;border:1px solid #eee;border-radius:14px;padding:14px;">
+                  No hay ingresos para mostrar.
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

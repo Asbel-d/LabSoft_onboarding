@@ -20,14 +20,8 @@
       overflow:hidden;
     }
 
-    /* layout */
-    .app{
-      display:grid;
-      grid-template-columns: 260px 1fr;
-      min-height:100vh;
-    }
+    .app{ display:grid; grid-template-columns: 260px 1fr; min-height:100vh; }
 
-    /* sidebar */
     .sidebar{
       padding:18px 16px;
       border-right:1px solid var(--line);
@@ -42,32 +36,13 @@
       background: rgba(255,255,255,.06);
       margin-bottom:16px;
     }
-    .brand h1{
-      margin:0;
-      color:#fff;
-      font-size:14px;
-      letter-spacing:.3px;
-      line-height:1.1;
-    }
-    .brand small{
-      display:block;
-      margin-top:2px;
-      color: rgba(255,255,255,.75);
-      font-size:12px;
-      font-weight:500;
-    }
+    .brand h1{ margin:0; color:#fff; font-size:14px; letter-spacing:.3px; line-height:1.1; }
+    .brand small{ display:block; margin-top:2px; color: rgba(255,255,255,.75); font-size:12px; font-weight:500; }
 
-    .nav{
-      margin-top:14px;
-      display:grid;
-      gap:8px;
-    }
+    .nav{ margin-top:14px; display:grid; gap:8px; }
     .nav a{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      padding:10px 12px;
-      border-radius:12px;
+      display:flex; align-items:center; gap:10px;
+      padding:10px 12px; border-radius:12px;
       color: rgba(255,255,255,.88);
       text-decoration:none;
       border:1px solid rgba(255,255,255,.10);
@@ -79,20 +54,10 @@
       border-color: rgba(46,167,255,.25);
       color:#fff;
     }
-    .dot{
-      width:10px; height:10px; border-radius:999px;
-      background: rgba(255,255,255,.45);
-    }
-    .active .dot{
-      background: linear-gradient(135deg, var(--accent2), var(--accent));
-    }
+    .dot{ width:10px; height:10px; border-radius:999px; background: rgba(255,255,255,.45); }
+    .active .dot{ background: linear-gradient(135deg, var(--accent2), var(--accent)); }
 
-    /* main */
-    .main{
-      display:flex;
-      flex-direction:column;
-      min-width:0;
-    }
+    .main{ display:flex; flex-direction:column; min-width:0; }
     .topbar{
       height:64px;
       display:flex;
@@ -103,45 +68,21 @@
       background: rgba(255,255,255,.06);
       backdrop-filter: blur(10px);
     }
-    .welcome{
-      color:#fff;
-      font-weight:800;
-      letter-spacing:.2px;
-    }
-    .who{
-      color: rgba(255,255,255,.75);
-      font-size:12px;
-      margin-top:3px;
-    }
-    .top-right{
-      display:flex;
-      align-items:center;
-      gap:12px;
-    }
+    .welcome{ color:#fff; font-weight:800; letter-spacing:.2px; }
+    .who{ color: rgba(255,255,255,.75); font-size:12px; margin-top:3px; }
+
+    .top-right{ display:flex; align-items:center; gap:12px; }
     .badge{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:8px 10px;
-      border-radius:999px;
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 10px; border-radius:999px;
       border:1px solid rgba(255,255,255,.12);
       background: rgba(0,0,0,.12);
-      color:#fff;
-      font-size:12px;
-      white-space:nowrap;
+      color:#fff; font-size:12px; white-space:nowrap;
     }
     .badge b{ font-weight:800; }
 
-    .content{
-      padding: 22px;
-      overflow:auto;
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns: 1.4fr .9fr;
-      gap:16px;
-    }
+    .content{ padding: 22px; overflow:auto; }
+    .grid{ display:grid; grid-template-columns: 1.4fr .9fr; gap:16px; }
 
     .card{
       background: rgba(255,255,255,.92);
@@ -157,22 +98,10 @@
       justify-content:space-between;
       border-bottom:1px solid #eee;
     }
-    .cardhead h2{
-      margin:0;
-      font-size:14px;
-      color:#0b3a6e;
-      letter-spacing:.2px;
-    }
-    .cardbody{
-      padding: 14px 16px;
-      font-size:13px;
-      color:#333;
-    }
+    .cardhead h2{ margin:0; font-size:14px; color:#0b3a6e; letter-spacing:.2px; }
+    .cardbody{ padding: 14px 16px; font-size:13px; color:#333; }
 
-    .list{
-      display:grid;
-      gap:10px;
-    }
+    .list{ display:grid; gap:10px; }
     .item{
       display:flex;
       align-items:center;
@@ -183,9 +112,7 @@
       border-radius: 14px;
       background:#fff;
     }
-    .item .meta{
-      min-width:0;
-    }
+    .item .meta{ min-width:0; }
     .item .meta b{
       display:block;
       font-size:13px;
@@ -214,22 +141,34 @@
     }
 
     .btn{
-      border:none;
-      cursor:pointer;
+      border:none; cursor:pointer;
       padding:10px 14px;
       border-radius:999px;
       font-weight:800;
       color:#fff;
       background: linear-gradient(90deg, var(--accent2), var(--accent));
       box-shadow: 0 12px 24px rgba(11,97,201,.22);
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
     }
+    .btn.ghost{
+      background: #eff6ff;
+      color:#0b3a6e;
+      box-shadow:none;
+      border:1px solid #dbeafe;
+    }
+
     .footer-actions{
       display:flex;
-      justify-content:flex-end;
+      justify-content:space-between;
       gap:10px;
       padding: 14px 16px;
       border-top:1px solid #eee;
       background: rgba(255,255,255,.65);
+      flex-wrap:wrap;
     }
     .footer-actions form{ margin:0; }
 
@@ -240,6 +179,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="app">
     <!-- Sidebar -->
@@ -253,9 +193,9 @@
       </div>
 
       <nav class="nav">
-        <a class="active" href="#"><span class="dot"></span> Dashboard</a>
-        <a href="#"><span class="dot"></span> Procesos</a>
-        <a href="#"><span class="dot"></span> Reportes</a>
+        <a class="active" href="{% url 'panel_rrhh' %}">Dashboard</a>
+        <a href="{% url 'rrhh_ingresos_listar' %}">Procesos</a>
+        <a href="{% url 'rrhh_ingreso_crear' %}">Crear ingreso</a>
       </nav>
     </aside>
 
@@ -269,75 +209,118 @@
 
         <div class="top-right">
           <div class="badge">Rol: <b>RRHH</b></div>
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button class="btn ghost" type="submit">Cerrar sesión</button>
+          </form>
         </div>
       </header>
 
       <section class="content">
         <div class="grid">
+
           <!-- Columna grande -->
           <div class="card">
             <div class="cardhead">
-              <h2>Resumen</h2>
-              <span class="tag">Sesión activa</span>
+              <h2>Procesos de ingreso</h2>
             </div>
+
             <div class="cardbody">
               <div class="list">
+
+                <!-- SIDGN-4 -->
                 <div class="item">
                   <div class="meta">
-                    <b>Acceso al sistema</b>
-                    <span>Panel básico de RRHH </span>
+                    <b>Crear proceso de ingreso</b>
+                    <span>RRHH registra el ingreso y al seleccionar el puesto se asigna automáticamente el jefe del área.</span>
                   </div>
-                  <span class="tag">OK</span>
+                  <a class="btn" href="{% url 'rrhh_ingreso_crear' %}">Crear</a>
+                </div>
+
+                <!-- SIDGN-5 -->
+                <div class="item">
+                  <div class="meta">
+                    <b>Editar proceso de ingreso</b>
+                    <span>Permite actualizar datos; si cambia el puesto, se recalcula el jefe automáticamente.</span>
+                  </div>
+                  <a class="btn ghost" href="{% url 'rrhh_ingresos_listar' %}">Editar desde lista</a>
+                </div>
+
+                <!-- SIDGN-6 -->
+                <div class="item">
+                  <div class="meta">
+                    <b>Cancelar proceso de ingreso</b>
+                    <span>Desde la lista RRHH puede cancelar un ingreso.</span>
+                  </div>
+                  <a class="btn ghost" href="{% url 'rrhh_ingresos_listar' %}">Cancelar desde lista</a>
+                </div>
+
+                <!-- SIDGN-7 -->
+                <div class="item">
+                  <div class="meta">
+                    <b>Visualizar ingresos por departamento</b>
+                    <span>Filtra los ingresos por área/departamento.</span>
+                  </div>
+                  <a class="btn ghost" href="{% url 'rrhh_ingresos_listar' %}">Ver lista</a>
                 </div>
 
                 <div class="item">
                   <div class="meta">
-                    <b>Acción disponible</b>
-                    <span>Por ahora RRHH solo puede cerrar sesión</span>
+                    <b>Asignar cursos del jefe</b>
+                    <span>RRHH confirma cursos seleccionados por jefe y finaliza el proceso.</span>
                   </div>
-                  <span class="tag">Mínimo</span>
+                  <a class="btn" href="{% url 'rrhh_ingresos_listar' %}?estado=EN_EJECUCION">Asignar cursos</a>
                 </div>
+
               </div>
-            </div>
-            <div class="footer-actions">
-              <form method="post" action="{% url 'logout' %}">
-                {% csrf_token %}
-                <button class="btn" type="submit">Cerrar sesión</button>
-              </form>
+
             </div>
           </div>
 
-          <!-- Columna derecha -->
+          <!-- Columna derecha: pendientes -->
           <div class="card">
             <div class="cardhead">
-              <h2>Actividad</h2>
+              <h2>Pendientes</h2>
               <span class="tag">Hoy</span>
             </div>
             <div class="cardbody">
               <div class="list">
                 <div class="item">
                   <div class="meta">
-                    <b>Login realizado</b>
-                    <span>Acceso exitoso</span>
+                    <b>Ingresos creados</b>
+                    <span>Total en el sistema: <b>{{ total_ingresos|default:"0" }}</b></span>
                   </div>
-                  <span class="tag">✔</span>
+                  <span class="tag">📄</span>
                 </div>
                 <div class="item">
                   <div class="meta">
-                    <b>Estado</b>
-                    <span>Listo para siguiente sprint</span>
+                    <b>Pendientes de jefe</b>
+                    <span>En estado: PENDIENTE_JEFE</span>
                   </div>
-                  <span class="tag">🚀</span>
+                  <span class="tag">{{ pendientes_jefe|default:"0" }}</span>
+                </div>
+                <div class="item">
+                  <div class="meta">
+                    <b>En ejecución</b>
+                    <span>En estado: EN_EJECUCION</span>
+                  </div>
+                  <span class="tag">{{ en_ejecucion|default:"0" }}</span>
+                </div>
+                <div class="item">
+                  <div class="meta">
+                    <b>Finalizados</b>
+                    <span>En estado: FINALIZADO</span>
+                  </div>
+                  <span class="tag">{{ finalizados|default:"0" }}</span>
                 </div>
               </div>
             </div>
             <div class="footer-actions">
-              <form method="post" action="{% url 'logout' %}">
-                {% csrf_token %}
-                <button class="btn" type="submit">Cerrar sesión</button>
-              </form>
+              <a class="btn" href="{% url 'rrhh_ingresos_listar' %}">Ir a Procesos</a>
+              <a class="btn ghost" href="{% url 'rrhh_ingreso_crear' %}">Nuevo ingreso</a>
             </div>
           </div>
+
         </div>
       </section>
     </main>

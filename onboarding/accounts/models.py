@@ -1,13 +1,37 @@
 from django.db import models
 
+class Usuario(models.Model):
+    id = models.AutoField(primary_key=True)
+    username = models.CharField(max_length=150)
+    password = models.CharField(max_length=255)
+    role = models.CharField(max_length=30)
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
+    is_superuser = models.BooleanField(default=False)
+
+    class Meta:
+        managed = False
+        db_table = "usuario"
+    
+    def __str__(self):
+        return f"{self.username} ({self.role})"
+
 class Area(models.Model):
     id = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=150)
-    jefe_usuario_id = models.IntegerField()
+    jefe_usuario = models.ForeignKey(
+        Usuario,
+        on_delete=models.DO_NOTHING,
+        db_column="jefe_usuario_id",
+        related_name="areas_a_cargo"
+    )
 
     class Meta:
         managed = False
         db_table = "area"
+    
+    def __str__(self):
+        return self.nombre
 
 
 class PuestoOrganizacional(models.Model):
@@ -18,6 +42,9 @@ class PuestoOrganizacional(models.Model):
     class Meta:
         managed = False
         db_table = "puesto_organizacional"
+    
+    def __str__(self):
+        return f"{self.nombre_puesto} - {self.area.nombre}"
 
 
 class Ingreso(models.Model):
@@ -35,6 +62,9 @@ class Ingreso(models.Model):
     class Meta:
         managed = False
         db_table = "ingreso"
+    
+    def __str__(self):
+        return f"{self.codigo_proceso} - {self.nombre_empleado}"
 
 
 class CatalogoItem(models.Model):
@@ -45,6 +75,9 @@ class CatalogoItem(models.Model):
     class Meta:
         managed = False
         db_table = "catalogo_item"
+    
+    def __str__(self):
+        return f"{self.nombre} ({self.tipo})"
 
 
 class IngresoCurso(models.Model):

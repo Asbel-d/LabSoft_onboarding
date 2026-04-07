@@ -1,0 +1,71 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tecnologia - Asignar aplicativos</title>
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <style>
+    body{ margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:linear-gradient(120deg,var(--bg1),var(--bg2)); min-height:100vh; padding:24px; }
+    .wrap{ max-width:980px; margin:0 auto; }
+    .card{ background:#fff; border-radius:16px; box-shadow:var(--shadow); overflow:hidden; }
+    .head{ padding:16px 18px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .head h2{ margin:0; color:#0b3a6e; font-size:16px; }
+    .body{ padding:16px 18px; display:grid; gap:14px; }
+    .meta{ font-size:13px; color:#555; }
+    .meta b{ color:#222; }
+    .box{ border:1px solid #eee; border-radius:14px; padding:12px; background:#fafafa; }
+    .box h3{ margin:0 0 8px; font-size:14px; color:#0b3a6e; }
+    .checks{ border:1px solid #eee; border-radius:14px; padding:10px 12px; background:#fff; max-height:300px; overflow:auto; }
+    .checks ul{ margin:0; padding-left:18px; }
+    .checks li{ margin:6px 0; }
+    .checks label{ cursor:pointer; }
+    .checks input{ margin-right:8px; }
+    .actions{ padding:14px 18px; border-top:1px solid #eee; display:flex; justify-content:flex-end; gap:10px; }
+    .btn{ border:none; cursor:pointer; padding:10px 14px; border-radius:999px; font-weight:800; text-decoration:none; display:inline-flex; align-items:center; }
+    .btn.primary{ color:#fff; background:linear-gradient(90deg,var(--accent2),var(--accent)); }
+    .btn.ghost{ background:#eff6ff; border:1px solid #dbeafe; color:#0b3a6e; }
+    .muted{ color:#777; font-size:12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="head">
+        <h2>Instalacion de aplicativos</h2>
+        <a class="btn ghost" href="{% url 'panel_tecnologia' %}">Volver</a>
+      </div>
+
+      <form method="post">
+        {% csrf_token %}
+        <div class="body">
+          <div class="meta">
+            <div><b>Proceso:</b> {{ ingreso.codigo_proceso }}</div>
+            <div><b>Empleado:</b> {{ ingreso.nombre_empleado }} ({{ ingreso.documento }})</div>
+            <div><b>Area:</b> {{ ingreso.puesto_organizacional.area.nombre }}</div>
+            <div><b>Estado actual:</b> {{ ingreso.estado }}</div>
+          </div>
+
+          <div class="box">
+            <h3>Aplicativos seleccionados por el jefe</h3>
+            {% if aplicativos %}
+              <ul>
+                {% for item in aplicativos %}
+                  <li>{{ item.aplicacion.nombre }}</li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="muted">No hay aplicativos seleccionados en este ingreso.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" type="submit">Marcar instalación completada</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

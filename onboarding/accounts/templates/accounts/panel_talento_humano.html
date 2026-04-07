@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Panel Talento Humano</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <style>
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(120deg,var(--bg1),var(--bg2));color:#fff;min-height:100vh;padding:24px}
+    .card{max-width:1100px;margin:0 auto;background:#fff;color:#1f1f1f;border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+    .head{padding:16px 18px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}
+    .head h2{margin:0;color:#0b3a6e}
+    .tag{padding:6px 10px;border-radius:999px;border:1px solid #dbeafe;background:#eff6ff;color:#0b3a6e;font-size:12px}
+    .body{padding:16px 18px}
+    .row{display:grid;grid-template-columns:120px 1fr 200px 170px;gap:10px;padding:10px 0;border-bottom:1px solid #f1f1f1;align-items:center}
+    .row.headr{font-weight:800;color:#0b3a6e;border-bottom:1px solid #e4e4e4}
+    .btn{padding:9px 12px;border-radius:999px;border:none;background:linear-gradient(90deg,var(--accent2),var(--accent));color:#fff;font-weight:800;text-decoration:none;display:inline-block;font-size:12px}
+    .muted{color:#666}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="head">
+      <h2>Panel Talento Humano - Confirmación de cursos</h2>
+      <div class="tag">Pendientes: {{ pendientes }}</div>
+    </div>
+    <div class="body">
+      <div class="row headr"><div>Proceso</div><div>Empleado</div><div>Area</div><div>Accion</div></div>
+      {% for i in ingresos %}
+        <div class="row">
+          <div><b>{{ i.codigo_proceso }}</b></div>
+          <div>{{ i.nombre_empleado }} <span class="muted">({{ i.documento }})</span></div>
+          <div>{{ i.puesto_organizacional.area.nombre }}</div>
+          <div><a class="btn" href="{% url 'talento_confirmar_cursos' i.id %}">Confirmar cursos</a></div>
+        </div>
+      {% empty %}
+        <div class="row"><div class="muted" style="grid-column:1/-1;">No hay solicitudes pendientes para Talento Humano.</div></div>
+      {% endfor %}
+    </div>
+  </div>
+</body>
+</html>

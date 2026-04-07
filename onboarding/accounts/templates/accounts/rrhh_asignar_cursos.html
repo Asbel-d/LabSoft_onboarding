@@ -1,0 +1,74 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RRHH · Asignar cursos</title>
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <style>
+    body{ margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:linear-gradient(120deg,var(--bg1),var(--bg2)); min-height:100vh; padding:24px; }
+    .wrap{ max-width:980px; margin:0 auto; }
+    .card{ background:#fff; border-radius:16px; box-shadow:var(--shadow); overflow:hidden; }
+    .head{ padding:16px 18px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .head h2{ margin:0; color:#0b3a6e; font-size:16px; }
+    .body{ padding:16px 18px; display:grid; gap:14px; }
+    .box{ border:1px solid #eee; border-radius:14px; padding:12px; background:#fafafa; }
+    .box h3{ margin:0 0 8px; font-size:14px; color:#0b3a6e; }
+    ul{ margin:0; padding-left:18px; }
+    li{ margin:6px 0; font-size:13px; color:#333; }
+    .meta{ font-size:13px; color:#555; }
+    .meta b{ color:#222; }
+    .actions{ padding:14px 18px; border-top:1px solid #eee; display:flex; justify-content:flex-end; gap:10px; }
+    .btn{ border:none; cursor:pointer; padding:10px 14px; border-radius:999px; font-weight:800; text-decoration:none; display:inline-flex; align-items:center; }
+    .btn.primary{ color:#fff; background:linear-gradient(90deg,var(--accent2),var(--accent)); }
+    .btn.ghost{ background:#eff6ff; border:1px solid #dbeafe; color:#0b3a6e; }
+    .empty{ color:#777; font-size:13px; }
+    .checklist{ border:1px solid #eee; border-radius:14px; padding:12px; background:#fff; }
+    .ok{ color:#0f766e; font-weight:700; }
+    .no{ color:#b91c1c; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="head">
+        <h2>Asignar cursos del jefe</h2>
+        <a class="btn ghost" href="{% url 'rrhh_ingresos_listar' %}?estado=EN_EJECUCION">Volver</a>
+      </div>
+
+      <div class="body">
+        <div class="meta">
+          <div><b>Proceso:</b> {{ ingreso.codigo_proceso }}</div>
+          <div><b>Empleado:</b> {{ ingreso.nombre_empleado }} ({{ ingreso.documento }})</div>
+          <div><b>Área:</b> {{ ingreso.puesto_organizacional.area.nombre }}</div>
+          <div><b>Estado actual:</b> {{ ingreso.estado }}</div>
+        </div>
+
+        <div class="box">
+          <h3>Cursos seleccionados por jefe</h3>
+          {% if cursos %}
+            <ul>
+              {% for item in cursos %}
+                <li>{{ item.curso.nombre }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <div class="empty">Este ingreso no tiene cursos seleccionados todavía.</div>
+          {% endif %}
+        </div>
+
+      </div>
+
+      <form method="post" class="actions">
+        {% csrf_token %}
+        {% if has_cursos %}
+          <button class="btn primary" type="submit">Confirmar cursos asignados</button>
+        {% else %}
+          <button class="btn primary" type="submit">Volver a pendiente de jefe</button>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+</body>
+</html>
