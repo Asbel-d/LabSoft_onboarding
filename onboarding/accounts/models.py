@@ -58,6 +58,8 @@ class Ingreso(models.Model):
         PuestoOrganizacional, on_delete=models.DO_NOTHING, db_column="puesto_organizacional_id"
     )
     estado = models.CharField(max_length=50)
+    observacion_cancelacion = models.TextField(blank=True, null=True)
+    fecha_cancelacion = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -98,3 +100,52 @@ class IngresoAplicacion(models.Model):
     class Meta:
         managed = False
         db_table = "ingreso_aplicacion"
+
+
+class IngresoDotacion(models.Model):
+    id = models.AutoField(primary_key=True)
+    ingreso = models.ForeignKey(Ingreso, on_delete=models.CASCADE, db_column="ingreso_id")
+    dotacion = models.ForeignKey(CatalogoItem, on_delete=models.DO_NOTHING, db_column="dotacion_id")
+    estado_entrega = models.CharField(max_length=20, default="PENDIENTE")
+
+    class Meta:
+        managed = False
+        db_table = "ingreso_dotacion"
+        unique_together = (("ingreso", "dotacion"),)
+
+
+class PuestoFisico(models.Model):
+    id = models.AutoField(primary_key=True)
+    codigo_puesto = models.CharField(max_length=50, unique=True)
+    estado = models.CharField(max_length=20, default="DISPONIBLE")
+
+    class Meta:
+        managed = False
+        db_table = "puesto_fisico"
+
+    def __str__(self):
+        return self.codigo_puesto
+
+
+class AsignacionPuestoFisico(models.Model):
+    id = models.AutoField(primary_key=True)
+    ingreso = models.OneToOneField(Ingreso, on_delete=models.CASCADE, db_column="ingreso_id")
+    puesto_fisico = models.OneToOneField(PuestoFisico, on_delete=models.DO_NOTHING, db_column="puesto_fisico_id")
+    estado = models.CharField(max_length=20, default="PENDIENTE")
+    fecha_asignacion = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = "asignacion_puesto_fisico"
+
+
+class RequerimientoJefe(models.Model):
+    id = models.AutoField(primary_key=True)
+    ingreso = models.OneToOneField(Ingreso, on_delete=models.CASCADE, db_column="ingreso_id")
+    equipo = models.CharField(max_length=200)
+    sistema_operativo = models.CharField(max_length=200)
+    fecha_definicion = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = "requerimiento_jefe"

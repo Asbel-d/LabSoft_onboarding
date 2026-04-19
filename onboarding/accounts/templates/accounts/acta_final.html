@@ -1,0 +1,103 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Acta</title>
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <style>
+    body{margin:0;font-family:system-ui;background:#f4f7fb;min-height:100vh;padding:24px;color:#222}
+    .sheet{max-width:960px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+    .head{padding:18px 22px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+    h1{margin:0;color:#0b3a6e;font-size:22px}
+    h2{margin:0 0 10px;color:#0b3a6e;font-size:15px}
+    .tag{padding:6px 10px;border-radius:999px;border:1px solid #dbeafe;background:#eff6ff;color:#0b3a6e;font-size:12px;font-weight:800}
+    .body{padding:20px 22px;display:grid;gap:16px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .box{border:1px solid #e5e7eb;border-radius:10px;padding:12px;background:#fff}
+    .row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #f1f1f1}
+    .row:last-child{border-bottom:none}
+    ul{margin:0;padding-left:18px}
+    li{margin:6px 0}
+    .muted{color:#666}
+    .actions{padding:14px 22px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:10px}
+    .btn{border:none;cursor:pointer;padding:10px 14px;border-radius:999px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center}
+    .primary{color:#fff;background:linear-gradient(90deg,var(--accent2),var(--accent))}
+    .ghost{background:#eff6ff;border:1px solid #dbeafe;color:#0b3a6e}
+    @media print{body{background:#fff;padding:0}.sheet{box-shadow:none;border:none}.actions{display:none}}
+    @media(max-width:760px){.grid{grid-template-columns:1fr}.head{display:block}.tag{margin-top:10px;display:inline-flex}}
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <div class="head">
+      <div>
+        <h1>{% if ingreso.estado == "CANCELADO" %}Acta de cancelacion{% else %}Acta final de ingreso{% endif %}</h1>
+        <div class="muted">Proceso {{ ingreso.codigo_proceso }} - {{ ingreso.nombre_empleado }}</div>
+      </div>
+      <span class="tag">{{ ingreso.estado }}</span>
+    </div>
+
+    <div class="body">
+      <div class="grid">
+        <div class="box">
+          <h2>Datos del proceso</h2>
+          <div class="row"><b>Creacion del acta</b><span>{{ fecha_creacion_acta|date:"d/m/Y H:i" }}</span></div>
+          <div class="row"><b>Fecha del proceso</b><span>{{ ingreso.fecha_ingreso|date:"d/m/Y" }}</span></div>
+          {% if ingreso.estado == "CANCELADO" %}
+            <div class="row"><b>Fecha de cancelacion</b><span>{{ ingreso.fecha_cancelacion|date:"d/m/Y H:i" }}</span></div>
+          {% endif %}
+          <div class="row"><b>Area</b><span>{{ ingreso.puesto_organizacional.area.nombre }}</span></div>
+          <div class="row"><b>Puesto</b><span>{{ ingreso.puesto_organizacional.nombre_puesto }}</span></div>
+          <div class="row"><b>Documento</b><span>{{ ingreso.tipo_documento }} {{ ingreso.documento }}</span></div>
+        </div>
+
+        <div class="box">
+          <h2>Resumen</h2>
+          <div class="row"><b>Solicitudes pedidas</b><span>{{ solicitudes_pedidas|length }}</span></div>
+          <div class="row"><b>Solicitudes respondidas</b><span>{{ solicitudes_respondidas|length }}</span></div>
+          <div class="row"><b>Dotaciones</b><span>{{ dotaciones|length }}</span></div>
+          <div class="row"><b>Puesto fisico</b><span>{% if asignacion_puesto %}{{ asignacion_puesto.puesto_fisico.codigo_puesto }}{% else %}Sin asignacion{% endif %}</span></div>
+        </div>
+      </div>
+
+      {% if ingreso.estado == "CANCELADO" %}
+        <div class="box">
+          <h2>Motivo de cancelacion</h2>
+          <p style="margin:0;">{{ ingreso.observacion_cancelacion|default:"Sin observacion registrada." }}</p>
+        </div>
+      {% endif %}
+
+      <div class="grid">
+        <div class="box">
+          <h2>Solicitudes pedidas</h2>
+          <ul>
+            {% for solicitud in solicitudes_pedidas %}
+              <li>{{ solicitud }}</li>
+            {% empty %}
+              <li>No hay solicitudes registradas.</li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <div class="box">
+          <h2>Solicitudes respondidas</h2>
+          <ul>
+            {% for solicitud in solicitudes_respondidas %}
+              <li>{{ solicitud }}</li>
+            {% empty %}
+              <li>No hay respuestas registradas.</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <a class="btn ghost" href="{% url volver_url %}">{{ volver_texto }}</a>
+      <button class="btn primary" onclick="window.print()">Imprimir acta</button>
+    </div>
+  </div>
+</body>
+</html>

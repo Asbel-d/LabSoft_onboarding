@@ -23,6 +23,7 @@ from accounts.views import (
     rrhh_asignar_cursos, panel_tecnologia, tecnologia_asignar_aplicativos,
     panel_talento_humano, talento_confirmar_cursos,
     panel_servicios, servicios_finalizar_ingreso,
+    rrhh_acta_final,
     puesto_info
 )
 
@@ -46,4 +47,5 @@ urlpatterns = [
     path("tecnologia/ingresos/<int:ingreso_id>/asignar-aplicativos/", tecnologia_asignar_aplicativos, name="tecnologia_asignar_aplicativos"),
     path("talento/ingresos/<int:ingreso_id>/confirmar-cursos/", talento_confirmar_cursos, name="talento_confirmar_cursos"),
     path("servicios/ingresos/<int:ingreso_id>/finalizar/", servicios_finalizar_ingreso, name="servicios_finalizar_ingreso"),
+    path("rrhh/ingresos/<int:ingreso_id>/acta-final/", rrhh_acta_final, name="rrhh_acta_final"),
 ]

@@ -1,3 +1,114 @@
 {% load static %}
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Finalizar ingreso</title><link rel="stylesheet" href="{% static 'css/theme.css' %}"><style>body{margin:0;font-family:system-ui;background:linear-gradient(120deg,var(--bg1),var(--bg2));min-height:100vh;padding:24px}.card{max-width:900px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:var(--shadow)}.head{padding:16px 18px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}.body{padding:16px 18px;display:grid;gap:10px}.item{padding:10px 12px;border:1px solid #eee;border-radius:12px;background:#fafafa}.ok{color:#0f766e;font-weight:700}.no{color:#b91c1c;font-weight:700}.actions{padding:14px 18px;border-top:1px solid #eee;display:flex;justify-content:flex-end;gap:10px}.btn{padding:10px 14px;border-radius:999px;border:none;font-weight:800;text-decoration:none;display:inline-flex;align-items:center}.primary{background:linear-gradient(90deg,var(--accent2),var(--accent));color:#fff}.ghost{background:#eff6ff;border:1px solid #dbeafe;color:#0b3a6e}</style></head><body><div class="card"><div class="head"><h2>Servicios Generales - Finalizar proceso</h2><a class="btn ghost" href="{% url 'panel_servicios' %}">Volver</a></div><form method="post">{% csrf_token %}<div class="body"><p><b>Proceso:</b> {{ ingreso.codigo_proceso }} | <b>Empleado:</b> {{ ingreso.nombre_empleado }}</p><div class="item {% if has_cursos %}ok{% else %}no{% endif %}">Cursos completados: {% if has_cursos %}OK{% else %}Pendiente{% endif %}</div><div class="item {% if has_apps %}ok{% else %}no{% endif %}">Aplicativos completados: {% if has_apps %}OK{% else %}Pendiente{% endif %}</div><label class="item"><input type="checkbox" name="puesto_asignado"> Puesto físico asignado</label><label class="item"><input type="checkbox" name="dotacion_entregada"> Dotación entregada</label></div><div class="actions"><button class="btn primary" type="submit">Finalizar proceso</button></div></form></div></body></html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Responder solicitudes</title>
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <style>
+    body{margin:0;font-family:system-ui;background:linear-gradient(120deg,var(--bg1),var(--bg2));min-height:100vh;padding:24px}
+    .card{max-width:980px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+    .head{padding:16px 18px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .body{padding:16px 18px;display:grid;gap:10px}
+    .item{padding:10px 12px;border:1px solid #eee;border-radius:12px;background:#fafafa}
+    .ok{color:#0f766e;font-weight:700}
+    .no{color:#b91c1c;font-weight:700}
+    .muted{color:#666;font-size:12px}
+    .actions{padding:14px 18px;border-top:1px solid #eee;display:flex;justify-content:flex-end;gap:10px}
+    .btn{padding:10px 14px;border-radius:999px;border:none;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;cursor:pointer}
+    .primary{background:linear-gradient(90deg,var(--accent2),var(--accent));color:#fff}
+    .ghost{background:#eff6ff;border:1px solid #dbeafe;color:#0b3a6e}
+    .office{margin-top:10px;border:1px solid #dbeafe;border-radius:14px;background:#f8fbff;padding:12px}
+    .office-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+    .legend{display:flex;gap:8px;flex-wrap:wrap}
+    .legend span{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#4b5563}
+    .mark{width:11px;height:11px;border-radius:3px;display:inline-block;border:1px solid #d1d5db}
+    .free{background:#dcfce7;border-color:#86efac}
+    .busy{background:#fee2e2;border-color:#fca5a5}
+    .selected{background:#dbeafe;border-color:#60a5fa}
+    .seat-grid{display:grid;grid-template-columns:repeat(5, minmax(96px, 1fr));gap:10px}
+    .seat{position:relative;display:block}
+    .seat input{position:absolute;opacity:0;pointer-events:none}
+    .seat-box{min-height:74px;border:1px solid #86efac;border-radius:10px;background:#dcfce7;padding:10px;cursor:pointer;display:grid;gap:4px;align-content:center;transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease}
+    .seat-box b{color:#14532d}
+    .seat-box span{font-size:12px;color:#166534}
+    .seat input:checked + .seat-box{background:#dbeafe;border-color:#60a5fa;box-shadow:0 10px 22px rgba(37,99,235,.18)}
+    .seat input:checked + .seat-box b{color:#1d4ed8}
+    .seat input:checked + .seat-box span{color:#1e40af}
+    .seat:not(.disabled) .seat-box:hover{transform:translateY(-1px)}
+    .seat.disabled .seat-box{background:#fee2e2;border-color:#fca5a5;cursor:not-allowed;opacity:.82}
+    .seat.disabled .seat-box b{color:#991b1b}
+    .seat.disabled .seat-box span{color:#b91c1c}
+    @media(max-width:760px){.seat-grid{grid-template-columns:repeat(2, minmax(0, 1fr))}.head{align-items:flex-start;flex-direction:column}}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="head">
+      <h2>Servicios Generales - Responder solicitudes</h2>
+      <a class="btn ghost" href="{% url 'panel_servicios' %}">Volver</a>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="body">
+        <p><b>Proceso:</b> {{ ingreso.codigo_proceso }} | <b>Empleado:</b> {{ ingreso.nombre_empleado }}</p>
+
+        <div class="item {% if has_cursos %}ok{% else %}no{% endif %}">
+          Cursos completados: {% if has_cursos %}OK{% else %}Pendiente{% endif %}
+        </div>
+        <div class="item {% if has_apps %}ok{% else %}no{% endif %}">
+          Aplicativos completados: {% if has_apps %}OK{% else %}Pendiente{% endif %}
+        </div>
+
+        <div class="item">
+          <b>Dotacion y uniformes solicitados</b>
+          {% for dotacion in dotaciones %}
+            <label style="display:block;margin-top:8px;">
+              <input type="checkbox" name="dotaciones_entregadas" value="{{ dotacion.id }}" {% if dotacion.estado_entrega == "ENTREGADA" %}checked{% endif %}>
+              {{ dotacion.dotacion.nombre }} <span class="muted">({{ dotacion.estado_entrega }})</span>
+            </label>
+          {% empty %}
+            <div class="muted">No hay dotacion solicitada para este ingreso.</div>
+          {% endfor %}
+        </div>
+
+        <div class="item">
+          <b>Puesto de trabajo solicitado</b>
+          {% if requerimiento %}
+            <div class="muted">Equipo: {{ requerimiento.equipo }} | Sistema operativo: {{ requerimiento.sistema_operativo }}</div>
+            <div class="office">
+              <div class="office-head">
+                <b>Oficina principal - 10 puestos</b>
+                <div class="legend">
+                  <span><i class="mark free"></i>Disponible</span>
+                  <span><i class="mark busy"></i>Ocupado</span>
+                  <span><i class="mark selected"></i>Seleccionado</span>
+                </div>
+              </div>
+              <div class="seat-grid">
+                {% for puesto in puestos_oficina %}
+                  <label class="seat {% if puesto.ocupado %}disabled{% endif %}">
+                    <input type="radio" name="puesto_fisico_id" value="{{ puesto.id }}" {% if puesto.seleccionado %}checked{% endif %} {% if puesto.ocupado %}disabled{% endif %}>
+                    <span class="seat-box">
+                      <b>{{ puesto.codigo }}</b>
+                      <span>{{ puesto.estado }}</span>
+                    </span>
+                  </label>
+                {% endfor %}
+              </div>
+            </div>
+          {% else %}
+            <div class="muted">El jefe no solicito puesto fisico adicional.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" type="submit">Finalizar y generar acta</button>
+      </div>
+    </form>
+  </div>
+</body>
+</html>

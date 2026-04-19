@@ -3,11 +3,24 @@ from django.db import transaction
 from django.db.models import Count
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from difflib import SequenceMatcher
 import unicodedata
 
 from .forms import IngresoForm, SeleccionAplicativosForm, SeleccionCursosAppsForm
-from .models import Area, CatalogoItem, Ingreso, IngresoAplicacion, IngresoCurso, PuestoOrganizacional, Usuario
+from .models import (
+    Area,
+    AsignacionPuestoFisico,
+    CatalogoItem,
+    Ingreso,
+    IngresoAplicacion,
+    IngresoCurso,
+    IngresoDotacion,
+    PuestoFisico,
+    PuestoOrganizacional,
+    RequerimientoJefe,
+    Usuario,
+)
 
 
 SUGGESTION_RULES = [
@@ -78,6 +91,54 @@ SUGGESTION_RULES = [
         ],
     },
 ]
+
+DEFAULT_DOTACION_ITEMS = [
+    "Uniforme corporativo",
+    "Carné institucional",
+    "Elementos de escritorio",
+]
+
+
+def _ensure_default_dotacion_items():
+    for nombre in DEFAULT_DOTACION_ITEMS:
+        CatalogoItem.objects.get_or_create(tipo="DOTACION", nombre=nombre)
+
+
+def _ensure_default_office_seats():
+    for number in range(1, 11):
+        PuestoFisico.objects.get_or_create(
+            codigo_puesto=f"OFICINA-{number:02d}",
+            defaults={"estado": "DISPONIBLE"},
+        )
+
+
+def _office_seats_for_ingreso(ingreso):
+    _ensure_default_office_seats()
+    current_assignment = (
+        AsignacionPuestoFisico.objects
+        .filter(ingreso=ingreso)
+        .select_related("puesto_fisico")
+        .first()
+    )
+    current_seat_id = current_assignment.puesto_fisico_id if current_assignment else None
+    occupied_by_others = set(
+        AsignacionPuestoFisico.objects
+        .exclude(ingreso=ingreso)
+        .values_list("puesto_fisico_id", flat=True)
+    )
+
+    seats = []
+    for puesto in PuestoFisico.objects.filter(codigo_puesto__startswith="OFICINA-").order_by("codigo_puesto")[:10]:
+        is_current = puesto.id == current_seat_id
+        is_occupied = puesto.id in occupied_by_others or (puesto.estado == "OCUPADO" and not is_current)
+        seats.append({
+            "id": puesto.id,
+            "codigo": puesto.codigo_puesto,
+            "estado": "OCUPADO" if is_occupied else "DISPONIBLE",
+            "ocupado": is_occupied,
+            "seleccionado": is_current,
+        })
+    return seats
 
 
 def _normalize_text(value):
@@ -253,7 +314,7 @@ def es_talento_humano(user):
 
 
 def es_servicios(user):
-    return user.is_authenticated and user.groups.filter(name="SERVICIOS").exists()
+    return user.is_authenticated and user.groups.filter(name__in=["SERVICIOS", "Servicio generales"]).exists()
 
 
 def _get_business_user_id(auth_user):
@@ -293,6 +354,7 @@ def panel_jefe(request):
 @login_required(login_url="/login/")
 @user_passes_test(es_jefe, login_url="/login/")
 def jefe_seleccionar(request, ingreso_id: int):
+    _ensure_default_dotacion_items()
     business_user_id = _get_business_user_id(request.user)
     ingreso = get_object_or_404(
         Ingreso.objects.select_related("puesto_organizacional__area"),
@@ -302,16 +364,21 @@ def jefe_seleccionar(request, ingreso_id: int):
 
     cursos_actuales_ids = set(IngresoCurso.objects.filter(ingreso=ingreso).values_list("curso_id", flat=True))
     apps_actuales_ids = set(IngresoAplicacion.objects.filter(ingreso=ingreso).values_list("aplicacion_id", flat=True))
+    dotaciones_actuales_ids = set(IngresoDotacion.objects.filter(ingreso=ingreso).values_list("dotacion_id", flat=True))
+    requerimiento_actual = RequerimientoJefe.objects.filter(ingreso=ingreso).first()
 
     if request.method == "POST":
         form = SeleccionCursosAppsForm(request.POST)
         if form.is_valid():
             cursos_sel = form.cleaned_data["cursos"]
             apps_sel = form.cleaned_data["aplicativos"]
+            dotaciones_sel = form.cleaned_data["dotaciones"]
+            requiere_puesto = form.cleaned_data["requiere_puesto_trabajo"]
 
             with transaction.atomic():
                 IngresoCurso.objects.filter(ingreso=ingreso).delete()
                 IngresoAplicacion.objects.filter(ingreso=ingreso).delete()
+                IngresoDotacion.objects.filter(ingreso=ingreso).delete()
 
                 IngresoCurso.objects.bulk_create([
                     IngresoCurso(ingreso=ingreso, curso=c) for c in cursos_sel
@@ -319,6 +386,24 @@ def jefe_seleccionar(request, ingreso_id: int):
                 IngresoAplicacion.objects.bulk_create([
                     IngresoAplicacion(ingreso=ingreso, aplicacion=a) for a in apps_sel
                 ])
+                for dotacion in dotaciones_sel:
+                    IngresoDotacion.objects.create(
+                        ingreso=ingreso,
+                        dotacion=dotacion,
+                        estado_entrega="PENDIENTE",
+                    )
+
+                if requiere_puesto:
+                    RequerimientoJefe.objects.update_or_create(
+                        ingreso=ingreso,
+                        defaults={
+                            "equipo": form.cleaned_data["equipo"],
+                            "sistema_operativo": form.cleaned_data["sistema_operativo"],
+                            "fecha_definicion": timezone.now(),
+                        }
+                    )
+                else:
+                    RequerimientoJefe.objects.filter(ingreso=ingreso).delete()
 
                 # El jefe define cursos y aplicativos para pasar a ejecución.
                 if cursos_sel.exists() and apps_sel.exists():
@@ -332,6 +417,10 @@ def jefe_seleccionar(request, ingreso_id: int):
         form = SeleccionCursosAppsForm(initial={
             "cursos": CatalogoItem.objects.filter(id__in=cursos_actuales_ids),
             "aplicativos": CatalogoItem.objects.filter(id__in=apps_actuales_ids),
+            "dotaciones": CatalogoItem.objects.filter(id__in=dotaciones_actuales_ids),
+            "requiere_puesto_trabajo": bool(requerimiento_actual),
+            "equipo": requerimiento_actual.equipo if requerimiento_actual else "",
+            "sistema_operativo": requerimiento_actual.sistema_operativo if requerimiento_actual else "",
         })
 
     sugerencias = _build_ai_suggestions(
@@ -384,14 +473,14 @@ def rrhh_ingreso_editar(request, ingreso_id):
     ingreso = get_object_or_404(Ingreso, id=ingreso_id)
 
     if request.method == "POST":
-        form = IngresoForm(request.POST, instance=ingreso)
+        form = IngresoForm(request.POST, instance=ingreso, allow_past_date=True)
         if form.is_valid():
             ingreso = form.save(commit=False)
 
             ingreso.save()
             return redirect("rrhh_ingresos_listar")
     else:
-        form = IngresoForm(instance=ingreso)
+        form = IngresoForm(instance=ingreso, allow_past_date=True)
 
     return render(request, "accounts/ingreso_form.html", {"form": form, "modo": "editar", "ingreso": ingreso})
 
@@ -461,7 +550,7 @@ def panel_tecnologia(request):
     ingresos = (
         Ingreso.objects
         .select_related("puesto_organizacional__area")
-        .filter(estado="TALENTO_HUMANO_COMPLETADO")
+        .filter(estado__in=["EN_EJECUCION", "TALENTO_HUMANO_COMPLETADO"])
         .filter(ingresoaplicacion__isnull=False)
         .distinct()
         .order_by("-fecha_ingreso", "-id")
@@ -479,6 +568,7 @@ def tecnologia_asignar_aplicativos(request, ingreso_id):
     ingreso = get_object_or_404(
         Ingreso.objects.select_related("puesto_organizacional__area"),
         id=ingreso_id,
+        estado__in=["EN_EJECUCION", "TALENTO_HUMANO_COMPLETADO"],
     )
     aplicativos = IngresoAplicacion.objects.filter(ingreso=ingreso).select_related("aplicacion").order_by("aplicacion__nombre")
     cursos = IngresoCurso.objects.filter(ingreso=ingreso).select_related("curso").order_by("curso__nombre")
@@ -504,7 +594,7 @@ def panel_talento_humano(request):
     ingresos = (
         Ingreso.objects
         .select_related("puesto_organizacional__area")
-        .filter(estado="EN_EJECUCION")
+        .filter(estado__in=["EN_EJECUCION", "TECNOLOGIA_COMPLETADO"])
         .filter(ingresocurso__isnull=False)
         .distinct()
         .order_by("-fecha_ingreso", "-id")
@@ -521,12 +611,14 @@ def talento_confirmar_cursos(request, ingreso_id):
     ingreso = get_object_or_404(
         Ingreso.objects.select_related("puesto_organizacional__area"),
         id=ingreso_id,
+        estado__in=["EN_EJECUCION", "TECNOLOGIA_COMPLETADO"],
     )
     cursos = IngresoCurso.objects.filter(ingreso=ingreso).select_related("curso").order_by("curso__nombre")
 
     if request.method == "POST":
         if cursos.exists():
-            ingreso.estado = "TALENTO_HUMANO_COMPLETADO"
+            if ingreso.estado != "TECNOLOGIA_COMPLETADO":
+                ingreso.estado = "TALENTO_HUMANO_COMPLETADO"
             ingreso.save(update_fields=["estado"])
         return redirect("panel_talento_humano")
 
@@ -542,12 +634,16 @@ def panel_servicios(request):
     ingresos = (
         Ingreso.objects
         .select_related("puesto_organizacional__area")
-        .filter(estado="TECNOLOGIA_COMPLETADO")
-        .filter(ingresocurso__isnull=False)
-        .filter(ingresoaplicacion__isnull=False)
+        .filter(estado__in=["EN_EJECUCION", "TALENTO_HUMANO_COMPLETADO", "TECNOLOGIA_COMPLETADO"])
         .distinct()
         .order_by("-fecha_ingreso", "-id")
     )
+    ingresos = ingresos.filter(
+        ingresodotacion__isnull=False
+    ) | ingresos.filter(
+        requerimientojefe__isnull=False
+    )
+    ingresos = ingresos.distinct().order_by("-fecha_ingreso", "-id")
     return render(request, "accounts/panel_servicios.html", {
         "ingresos": ingresos,
         "pendientes": ingresos.count(),
@@ -560,31 +656,148 @@ def servicios_finalizar_ingreso(request, ingreso_id):
     ingreso = get_object_or_404(
         Ingreso.objects.select_related("puesto_organizacional__area"),
         id=ingreso_id,
+        estado__in=["EN_EJECUCION", "TALENTO_HUMANO_COMPLETADO", "TECNOLOGIA_COMPLETADO"],
     )
     cursos = IngresoCurso.objects.filter(ingreso=ingreso).exists()
     apps = IngresoAplicacion.objects.filter(ingreso=ingreso).exists()
+    dotaciones = IngresoDotacion.objects.filter(ingreso=ingreso).select_related("dotacion").order_by("dotacion__nombre")
+    requerimiento = RequerimientoJefe.objects.filter(ingreso=ingreso).first()
+    asignacion_puesto = AsignacionPuestoFisico.objects.filter(ingreso=ingreso).select_related("puesto_fisico").first()
+    puestos_oficina = _office_seats_for_ingreso(ingreso) if requerimiento else []
 
     if request.method == "POST":
-        puesto_asignado = request.POST.get("puesto_asignado") == "on"
-        dotacion_entregada = request.POST.get("dotacion_entregada") == "on"
-        if cursos and apps and puesto_asignado and dotacion_entregada:
+        dotaciones_entregadas_ids = request.POST.getlist("dotaciones_entregadas")
+        puesto_fisico_id = request.POST.get("puesto_fisico_id")
+
+        with transaction.atomic():
+            for dotacion in dotaciones:
+                dotacion.estado_entrega = "ENTREGADA" if str(dotacion.id) in dotaciones_entregadas_ids else "PENDIENTE"
+                dotacion.save(update_fields=["estado_entrega"])
+
+            puesto_ok = True
+            if requerimiento:
+                puesto_ok = False
+                puesto_fisico = (
+                    PuestoFisico.objects
+                    .filter(id=puesto_fisico_id, codigo_puesto__startswith="OFICINA-")
+                    .first()
+                )
+                ocupado_por_otro = (
+                    puesto_fisico and
+                    AsignacionPuestoFisico.objects
+                    .filter(puesto_fisico=puesto_fisico)
+                    .exclude(ingreso=ingreso)
+                    .exists()
+                )
+                if puesto_fisico and not ocupado_por_otro:
+                    if asignacion_puesto and asignacion_puesto.puesto_fisico_id != puesto_fisico.id:
+                        puesto_anterior = asignacion_puesto.puesto_fisico
+                        puesto_anterior.estado = "DISPONIBLE"
+                        puesto_anterior.save(update_fields=["estado"])
+
+                    puesto_fisico.estado = "OCUPADO"
+                    puesto_fisico.save(update_fields=["estado"])
+                    AsignacionPuestoFisico.objects.update_or_create(
+                        ingreso=ingreso,
+                        defaults={
+                            "puesto_fisico": puesto_fisico,
+                            "estado": "COMPLETADA",
+                            "fecha_asignacion": timezone.now(),
+                        }
+                    )
+                    puesto_ok = True
+
+            dotacion_ok = not dotaciones.exists() or not dotaciones.exclude(estado_entrega="ENTREGADA").exists()
+
+        if ingreso.estado == "TECNOLOGIA_COMPLETADO" and cursos and apps and puesto_ok and dotacion_ok:
             ingreso.estado = "FINALIZADO"
             ingreso.save(update_fields=["estado"])
-        return redirect("panel_servicios")
+            return redirect(f"/rrhh/ingresos/{ingreso.id}/acta-final/?volver=servicios")
+
+        return redirect("servicios_finalizar_ingreso", ingreso_id=ingreso.id)
 
     return render(request, "accounts/servicios_finalizar_ingreso.html", {
         "ingreso": ingreso,
         "has_cursos": cursos,
         "has_apps": apps,
+        "dotaciones": dotaciones,
+        "requerimiento": requerimiento,
+        "asignacion_puesto": asignacion_puesto,
+        "puestos_oficina": puestos_oficina,
+    })
+
+
+@login_required
+def rrhh_acta_final(request, ingreso_id):
+    ingreso = get_object_or_404(
+        Ingreso.objects.select_related("puesto_organizacional__area"),
+        id=ingreso_id,
+    )
+    cursos = IngresoCurso.objects.filter(ingreso=ingreso).select_related("curso").order_by("curso__nombre")
+    aplicativos = IngresoAplicacion.objects.filter(ingreso=ingreso).select_related("aplicacion").order_by("aplicacion__nombre")
+    dotaciones = IngresoDotacion.objects.filter(ingreso=ingreso).select_related("dotacion").order_by("dotacion__nombre")
+    requerimiento = RequerimientoJefe.objects.filter(ingreso=ingreso).first()
+    asignacion_puesto = AsignacionPuestoFisico.objects.filter(ingreso=ingreso).select_related("puesto_fisico").first()
+
+    solicitudes_pedidas = []
+    solicitudes_respondidas = []
+
+    for curso in cursos:
+        solicitudes_pedidas.append(f"Curso: {curso.curso.nombre}")
+        if ingreso.estado in ["TALENTO_HUMANO_COMPLETADO", "TECNOLOGIA_COMPLETADO", "FINALIZADO"]:
+            solicitudes_respondidas.append(f"Curso completado: {curso.curso.nombre}")
+
+    for aplicativo in aplicativos:
+        solicitudes_pedidas.append(f"Aplicativo: {aplicativo.aplicacion.nombre}")
+        if ingreso.estado in ["TECNOLOGIA_COMPLETADO", "FINALIZADO"]:
+            solicitudes_respondidas.append(f"Aplicativo asignado: {aplicativo.aplicacion.nombre}")
+
+    for dotacion in dotaciones:
+        solicitudes_pedidas.append(f"Dotación/uniforme: {dotacion.dotacion.nombre}")
+        if dotacion.estado_entrega == "ENTREGADA":
+            solicitudes_respondidas.append(f"Dotación entregada: {dotacion.dotacion.nombre}")
+
+    if requerimiento:
+        solicitudes_pedidas.append(f"Puesto de trabajo: {requerimiento.equipo} / {requerimiento.sistema_operativo}")
+        if asignacion_puesto and asignacion_puesto.estado == "COMPLETADA":
+            solicitudes_respondidas.append(f"Puesto asignado: {asignacion_puesto.puesto_fisico.codigo_puesto}")
+
+    if request.GET.get("volver") == "servicios" and es_servicios(request.user):
+        volver_url = "panel_servicios"
+        volver_texto = "Volver a Servicios"
+    else:
+        volver_url = "rrhh_ingresos_listar"
+        volver_texto = "Volver a procesos"
+
+    return render(request, "accounts/acta_final.html", {
+        "ingreso": ingreso,
+        "fecha_creacion_acta": timezone.localtime(),
+        "solicitudes_pedidas": solicitudes_pedidas,
+        "solicitudes_respondidas": solicitudes_respondidas,
+        "cursos": cursos,
+        "aplicativos": aplicativos,
+        "dotaciones": dotaciones,
+        "requerimiento": requerimiento,
+        "asignacion_puesto": asignacion_puesto,
+        "volver_url": volver_url,
+        "volver_texto": volver_texto,
     })
 
 @login_required
 def rrhh_ingreso_cancelar(request, ingreso_id):
     ingreso = get_object_or_404(Ingreso, id=ingreso_id)
+    error = None
 
     if request.method == "POST":
-        ingreso.estado = "CANCELADO"
-        ingreso.save()
-        return redirect("rrhh_ingresos_listar")
+        observacion = request.POST.get("observacion_cancelacion", "").strip()
+        if not observacion:
+            error = "Escribe una observación para cancelar el proceso."
+            return render(request, "accounts/ingreso_cancelar.html", {"ingreso": ingreso, "error": error})
 
-    return render(request, "accounts/ingreso_cancelar.html", {"ingreso": ingreso})
+        ingreso.estado = "CANCELADO"
+        ingreso.observacion_cancelacion = observacion
+        ingreso.fecha_cancelacion = timezone.now()
+        ingreso.save(update_fields=["estado", "observacion_cancelacion", "fecha_cancelacion"])
+        return redirect("rrhh_acta_final", ingreso_id=ingreso.id)
+
+    return render(request, "accounts/ingreso_cancelar.html", {"ingreso": ingreso, "error": error})

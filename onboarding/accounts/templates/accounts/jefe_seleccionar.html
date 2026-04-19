@@ -140,6 +140,11 @@
     .checks li{ margin:6px 0; }
     .checks label{ cursor:pointer; }
     .checks input{ margin-right:8px; }
+    .field-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .field{ border:1px solid #eee; border-radius:14px; padding:10px 12px; background:#fff; }
+    .field label{ display:block; font-weight:800; color:#0b3a6e; margin-bottom:6px; }
+    .field input[type="text"]{ width:100%; border:1px solid #e6e6e6; border-radius:10px; padding:10px 12px; }
+    .errors{ margin:10px 0; padding:10px 12px; border-radius:12px; background:#fef2f2; border:1px solid #fecaca; color:#991b1b; font-size:12px; }
 
     .actions{
       display:flex;
@@ -289,6 +294,9 @@
 
               <form method="post">
                 {% csrf_token %}
+                {% if form.errors %}
+                  <div class="errors">{{ form.errors }}</div>
+                {% endif %}
 
                 <div class="section-title">Cursos</div>
                 <div class="checks" id="courses_checks">
@@ -298,6 +306,26 @@
                 <div class="section-title">Aplicativos</div>
                 <div class="checks" id="apps_checks">
                   {{ form.aplicativos }}
+                </div>
+
+                <div class="section-title">Dotación y uniformes</div>
+                <div class="checks">
+                  {{ form.dotaciones }}
+                </div>
+
+                <div class="section-title">Puesto de trabajo</div>
+                <div class="checks">
+                  <label>{{ form.requiere_puesto_trabajo }} Solicitar puesto de trabajo físico</label>
+                </div>
+                <div class="field-grid">
+                  <div class="field">
+                    <label>{{ form.equipo.label }}</label>
+                    {{ form.equipo }}
+                  </div>
+                  <div class="field">
+                    <label>{{ form.sistema_operativo.label }}</label>
+                    {{ form.sistema_operativo }}
+                  </div>
                 </div>
 
                 <div class="actions">

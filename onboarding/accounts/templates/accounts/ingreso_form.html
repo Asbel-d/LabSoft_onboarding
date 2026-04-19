@@ -26,6 +26,7 @@
     .btn{ border:none; cursor:pointer; padding:10px 14px; border-radius:999px; font-weight:800; }
     .btn.primary{ color:#fff; background:linear-gradient(90deg,var(--accent2),var(--accent)); }
     .btn.ghost{ background:#eff6ff; border:1px solid #dbeafe; color:#0b3a6e; text-decoration:none; display:inline-flex; align-items:center; }
+    .errors{ margin:0 0 12px; padding:10px 12px; border-radius:12px; background:#fef2f2; border:1px solid #fecaca; color:#991b1b; font-size:13px; }
     @media(max-width:700px){ .row{ grid-template-columns:1fr; } }
   </style>
 </head>
@@ -40,6 +41,9 @@
       <form method="post">
         {% csrf_token %}
         <div class="body">
+          {% if form.errors %}
+            <div class="errors">{{ form.errors }}</div>
+          {% endif %}
           <div class="row">
             <div>
               <label>Código proceso</label>

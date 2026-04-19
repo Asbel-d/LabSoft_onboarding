@@ -1,2 +1,311 @@
+{% load static %}
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Panel Servicios</title>{% load static %}<link rel="stylesheet" href="{% static 'css/theme.css' %}"><style>body{margin:0;font-family:system-ui;background:linear-gradient(120deg,var(--bg1),var(--bg2));min-height:100vh;padding:24px;color:#fff}.card{max-width:1100px;margin:0 auto;background:#fff;color:#1f1f1f;border-radius:16px;box-shadow:var(--shadow);overflow:hidden}.head{padding:16px 18px;border-bottom:1px solid #eee;display:flex;justify-content:space-between}.tag{padding:6px 10px;border:1px solid #dbeafe;background:#eff6ff;border-radius:999px;color:#0b3a6e;font-size:12px}.body{padding:16px 18px}.row{display:grid;grid-template-columns:120px 1fr 220px 160px;gap:10px;padding:10px 0;border-bottom:1px solid #f1f1f1}.row.h{font-weight:800;color:#0b3a6e}.btn{padding:9px 12px;border:none;border-radius:999px;background:linear-gradient(90deg,var(--accent2),var(--accent));color:#fff;font-weight:800;text-decoration:none;display:inline-block;font-size:12px}</style></head><body><div class="card"><div class="head"><h2>Panel Servicios Generales - Puesto y dotación</h2><div class="tag">Pendientes: {{ pendientes }}</div></div><div class="body"><div class="row h"><div>Proceso</div><div>Empleado</div><div>Área</div><div>Acción</div></div>{% for i in ingresos %}<div class="row"><div><b>{{ i.codigo_proceso }}</b></div><div>{{ i.nombre_empleado }} ({{ i.documento }})</div><div>{{ i.puesto_organizacional.area.nombre }}</div><div><a class="btn" href="{% url 'servicios_finalizar_ingreso' i.id %}">Asignar puesto</a></div></div>{% empty %}<div class="row"><div style="grid-column:1/-1;color:#666;">No hay solicitudes pendientes para Servicios.</div></div>{% endfor %}</div></div></body></html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel Servicios Generales</title>
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <style>
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--ink);
+      min-height:100vh;
+      background:
+        radial-gradient(1000px 620px at 10% 22%, #0b61c955 0%, transparent 55%),
+        radial-gradient(900px 560px at 88% 72%, #2ea7ff44 0%, transparent 55%),
+        linear-gradient(120deg, var(--bg1), var(--bg2));
+      overflow:hidden;
+    }
+
+    .app{ display:grid; grid-template-columns:260px 1fr; min-height:100vh; }
+    .sidebar{
+      padding:18px 16px;
+      border-right:1px solid var(--line);
+      background:rgba(255,255,255,.06);
+      backdrop-filter:blur(10px);
+    }
+    .brand{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.06);
+      margin-bottom:16px;
+    }
+    .brand h1{ margin:0; color:#fff; font-size:14px; letter-spacing:.3px; line-height:1.1; }
+    .brand small{ display:block; margin-top:2px; color:rgba(255,255,255,.75); font-size:12px; font-weight:500; }
+
+    .nav{ margin-top:14px; display:grid; gap:8px; }
+    .nav a{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      color:rgba(255,255,255,.88);
+      text-decoration:none;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.05);
+      font-size:13px;
+    }
+    .nav a.active{
+      background:linear-gradient(90deg, rgba(11,97,201,.35), rgba(46,167,255,.25));
+      border-color:rgba(46,167,255,.25);
+      color:#fff;
+    }
+    .dot{ width:10px; height:10px; border-radius:999px; background:rgba(255,255,255,.45); }
+    .active .dot{ background:linear-gradient(135deg, var(--accent2), var(--accent)); }
+
+    .main{ display:flex; flex-direction:column; min-width:0; }
+    .topbar{
+      height:64px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 22px;
+      border-bottom:1px solid var(--line);
+      background:rgba(255,255,255,.06);
+      backdrop-filter:blur(10px);
+    }
+    .welcome{ color:#fff; font-weight:900; letter-spacing:.2px; }
+    .who{ color:rgba(255,255,255,.75); font-size:12px; margin-top:3px; }
+    .top-right{ display:flex; align-items:center; gap:12px; }
+
+    .content{ padding:22px; overflow:auto; }
+    .grid{ display:grid; grid-template-columns:1.4fr .85fr; gap:16px; }
+    .card{
+      background:rgba(255,255,255,.94);
+      border:1px solid rgba(255,255,255,.35);
+      border-radius:16px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .cardhead{
+      padding:14px 16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      border-bottom:1px solid #eee;
+    }
+    .cardhead h2{ margin:0; font-size:14px; color:#0b3a6e; letter-spacing:.2px; }
+    .cardbody{ padding:14px 16px; font-size:13px; color:#333; }
+
+    .badge,.tag{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:7px 10px;
+      border-radius:999px;
+      border:1px solid #dbeafe;
+      background:#eff6ff;
+      color:#0b3a6e;
+      font-size:12px;
+      font-weight:800;
+      white-space:nowrap;
+    }
+    .badge{
+      border-color:rgba(255,255,255,.12);
+      background:rgba(0,0,0,.12);
+      color:#fff;
+    }
+
+    .list{ display:grid; gap:10px; }
+    .request{
+      display:grid;
+      grid-template-columns:120px 1fr 170px;
+      gap:12px;
+      align-items:center;
+      padding:12px;
+      border:1px solid #eee;
+      border-radius:14px;
+      background:#fff;
+    }
+    .code{ color:#0b3a6e; font-weight:900; }
+    .meta{ min-width:0; }
+    .meta b{ display:block; color:#222; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .meta span{ display:block; margin-top:3px; color:var(--muted); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .empty{
+      padding:18px;
+      border:1px dashed #dbeafe;
+      border-radius:14px;
+      background:#f8fbff;
+      color:#52616f;
+      text-align:center;
+    }
+
+    .stats{ display:grid; gap:10px; }
+    .stat{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:12px;
+      border:1px solid #eee;
+      border-radius:14px;
+      background:#fff;
+    }
+    .stat b{ display:block; font-size:13px; color:#222; }
+    .stat span{ color:var(--muted); font-size:12px; }
+
+    .guide{
+      margin-top:12px;
+      padding:12px;
+      border:1px solid #dbeafe;
+      border-radius:14px;
+      background:#f8fbff;
+      color:#334155;
+    }
+    .guide p{ margin:0 0 8px; }
+    .guide ul{ margin:0; padding-left:18px; }
+    .guide li{ margin:6px 0; }
+
+    .btn{
+      border:none;
+      cursor:pointer;
+      padding:10px 14px;
+      border-radius:999px;
+      font-weight:900;
+      color:#fff;
+      background:linear-gradient(90deg,var(--accent2),var(--accent));
+      box-shadow:0 12px 24px rgba(11,97,201,.22);
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      font-size:13px;
+      white-space:nowrap;
+    }
+    .btn.ghost{
+      background:#eff6ff;
+      color:#0b3a6e;
+      box-shadow:none;
+      border:1px solid #dbeafe;
+    }
+    form{ margin:0; }
+
+    @media(max-width:980px){
+      body{ overflow:auto; }
+      .app{ grid-template-columns:1fr; }
+      .sidebar{ display:none; }
+      .grid{ grid-template-columns:1fr; }
+      .request{ grid-template-columns:1fr; }
+      .topbar{ height:auto; padding:14px 16px; align-items:flex-start; }
+      .top-right{ flex-wrap:wrap; justify-content:flex-end; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="logo" src="{% static 'img/logo.png' %}" alt="Sinergia Financiera">
+        <div>
+          <h1>Sinergia Financiera</h1>
+          <small>Servicios Generales</small>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a class="active" href="{% url 'panel_servicios' %}"><span class="dot"></span> Solicitudes</a>
+        <a href="{% url 'panel_servicios' %}"><span class="dot"></span> Puestos y dotación</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="welcome">Panel Servicios Generales</div>
+          <div class="who">Usuario: <b>{{ request.user.username }}</b></div>
+        </div>
+        <div class="top-right">
+          <div class="badge">Rol: <b>Servicios</b></div>
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button class="btn ghost" type="submit">Cerrar sesión</button>
+          </form>
+        </div>
+      </header>
+
+      <section class="content">
+        <div class="grid">
+          <div class="card">
+            <div class="cardhead">
+              <h2>Solicitudes por responder</h2>
+              <span class="tag">Pendientes: {{ pendientes|default:"0" }}</span>
+            </div>
+
+            <div class="cardbody">
+              <div class="list">
+                {% for i in ingresos %}
+                  <div class="request">
+                    <div class="code">{{ i.codigo_proceso }}</div>
+                    <div class="meta">
+                      <b>{{ i.nombre_empleado }}</b>
+                      <span>{{ i.tipo_documento }} {{ i.documento }} · {{ i.puesto_organizacional.area.nombre }}</span>
+                      <span>Puesto: {{ i.puesto_organizacional.nombre_puesto }}</span>
+                    </div>
+                    <a class="btn" href="{% url 'servicios_finalizar_ingreso' i.id %}">Responder solicitudes</a>
+                  </div>
+                {% empty %}
+                  <div class="empty">
+                    No hay solicitudes pendientes para Servicios Generales.
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="cardhead">
+              <h2>Resumen</h2>
+              <span class="tag">Sprint 3</span>
+            </div>
+
+            <div class="cardbody">
+              <div class="stats">
+                <div class="stat">
+                  <div>
+                    <b>Procesos listos</b>
+                    <span>Con cursos y aplicativos completados</span>
+                  </div>
+                  <span class="tag">{{ pendientes|default:"0" }}</span>
+                </div>
+                <div class="stat">
+                  <div>
+                    <b>Dotación y uniformes</b>
+                    <span>Marca cada entrega solicitada</span>
+                  </div>
+                  <span class="tag">Entrega</span>
+                </div>
+                <div class="stat">
+                  <div>
+                    <b>Puesto de trabajo</b>
+                    <span>Registra el código del puesto físico</span>
+                  </div>
+                  <span class="tag">Asignación</span>
+                </div>
+              </div>
+
+              <div class="guide">
+                <p><b>Flujo de atención</b></p>
+                <ul>
+                  <li>Abre un proceso pendiente.</li>
+                  <li>Responde dotación, uniformes y puesto físico.</li>
+                  <li>Al completar todo, se genera el acta final para RRHH.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

@@ -47,6 +47,8 @@
             <option value="CREADO_RRHH" {% if estado == "CREADO_RRHH" %}selected{% endif %}>CREADO_RRHH</option>
             <option value="PENDIENTE_JEFE" {% if estado == "PENDIENTE_JEFE" %}selected{% endif %}>PENDIENTE_JEFE</option>
             <option value="EN_EJECUCION" {% if estado == "EN_EJECUCION" %}selected{% endif %}>EN_EJECUCION</option>
+            <option value="TALENTO_HUMANO_COMPLETADO" {% if estado == "TALENTO_HUMANO_COMPLETADO" %}selected{% endif %}>TALENTO_HUMANO_COMPLETADO</option>
+            <option value="TECNOLOGIA_COMPLETADO" {% if estado == "TECNOLOGIA_COMPLETADO" %}selected{% endif %}>TECNOLOGIA_COMPLETADO</option>
             <option value="FINALIZADO" {% if estado == "FINALIZADO" %}selected{% endif %}>FINALIZADO</option>
             <option value="CANCELADO" {% if estado == "CANCELADO" %}selected{% endif %}>CANCELADO</option>
           </select>
@@ -92,8 +94,16 @@
                     {% if i.estado == "EN_EJECUCION" %}
                       <a class="btn primary" href="{% url 'rrhh_asignar_cursos' i.id %}">Asignar cursos</a>
                     {% endif %}
+                    {% if i.estado == "FINALIZADO" %}
+                      <a class="btn primary" href="{% url 'rrhh_acta_final' i.id %}">Acta</a>
+                    {% endif %}
+                    {% if i.estado == "CANCELADO" %}
+                      <a class="btn primary" href="{% url 'rrhh_acta_final' i.id %}">Acta</a>
+                    {% endif %}
                     <a class="btn ghost" href="{% url 'rrhh_ingreso_editar' i.id %}">Editar</a>
-                    <a class="btn ghost" href="{% url 'rrhh_ingreso_cancelar' i.id %}">Cancelar</a>
+                    {% if i.estado != "CANCELADO" and i.estado != "FINALIZADO" %}
+                      <a class="btn ghost" href="{% url 'rrhh_ingreso_cancelar' i.id %}">Cancelar</a>
+                    {% endif %}
                   </div>
                 </td>
               </tr>
