@@ -200,7 +200,17 @@ def _enviar_correo_resend(email, titulo, mensaje, url):
         with urlopen(request, timeout=settings.RESEND_TIMEOUT_SECONDS) as response:
             response.read()
         return True
-    except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
+    except HTTPError as exc:
+        error_body = exc.read().decode("utf-8", errors="replace")
+        logger.warning(
+            "No se pudo enviar correo por Resend a %s: HTTP %s - %s",
+            email,
+            exc.code,
+            error_body,
+            exc_info=True,
+        )
+        return False
+    except (URLError, TimeoutError, OSError, ValueError) as exc:
         logger.warning(
             "No se pudo enviar correo por Resend a %s: %s",
             email,
@@ -234,8 +244,8 @@ def _enviar_correo_notificacion(usuario, titulo, mensaje, url):
         return
 
     if settings.RESEND_API_KEY:
-        if _enviar_correo_resend(email, titulo, mensaje, url):
-            return
+        _enviar_correo_resend(email, titulo, mensaje, url)
+        return
 
     _enviar_correo_smtp(email, titulo, mensaje, url)
 
