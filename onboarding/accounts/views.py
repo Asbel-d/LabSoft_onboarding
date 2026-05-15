@@ -14,6 +14,8 @@ import csv
 from datetime import datetime
 from io import StringIO
 import json
+import logging
+import smtplib
 import unicodedata
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -39,6 +41,9 @@ from .models import (
     RequerimientoJefe,
     Usuario,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 SUGGESTION_RULES = [
@@ -167,13 +172,21 @@ def _enviar_correo_notificacion(usuario, titulo, mensaje, url):
         "Este mensaje fue generado automaticamente por el sistema de onboarding."
     )
 
-    send_mail(
-        subject=titulo,
-        message=cuerpo,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[email],
-        fail_silently=True,
-    )
+    try:
+        send_mail(
+            subject=titulo,
+            message=cuerpo,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+    except (smtplib.SMTPException, OSError, TimeoutError) as exc:
+        logger.warning(
+            "No se pudo enviar correo de notificacion a %s: %s",
+            email,
+            exc,
+            exc_info=True,
+        )
 
 
 def _crear_notificacion(usuario, ingreso, titulo, mensaje, url):
