@@ -20,10 +20,11 @@ from django.contrib.auth import views as auth_views
 from accounts.views import (
     panel_rrhh, redireccion_por_rol, panel_jefe, jefe_seleccionar,
     rrhh_ingreso_crear, rrhh_ingreso_editar, rrhh_ingreso_cancelar, rrhh_ingresos_listar,
+    rrhh_importar_historico,
     rrhh_asignar_cursos, panel_tecnologia, tecnologia_asignar_aplicativos,
     panel_talento_humano, talento_confirmar_cursos,
     panel_servicios, servicios_finalizar_ingreso,
-    rrhh_acta_final,
+    rrhh_acta_final, notificacion_abrir,
     puesto_info
 )
 
@@ -32,6 +33,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('login/', auth_views.LoginView.as_view(template_name='accounts/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
+    path("notificaciones/<int:notificacion_id>/abrir/", notificacion_abrir, name="notificacion_abrir"),
     path('rrhh/', redireccion_por_rol, name='redireccion_por_rol'),
     path('panel-rrhh/', panel_rrhh, name='panel_rrhh'),
     path('panel-tecnologia/', panel_tecnologia, name='panel_tecnologia'),
@@ -41,6 +43,7 @@ urlpatterns = [
     path("jefe/ingreso/<int:ingreso_id>/", jefe_seleccionar, name="jefe_seleccionar"),
     path("api/puestos/<int:puesto_id>/info/", puesto_info, name="puesto_info"),
     path("rrhh/ingresos/", rrhh_ingresos_listar, name="rrhh_ingresos_listar"),
+    path("rrhh/ingresos/importar-historico/", rrhh_importar_historico, name="rrhh_importar_historico"),
     path("rrhh/ingresos/<int:ingreso_id>/asignar-cursos/", rrhh_asignar_cursos, name="rrhh_asignar_cursos"),
     path("rrhh/ingresos/crear/", rrhh_ingreso_crear, name="rrhh_ingreso_crear"),
     path("rrhh/ingresos/<int:ingreso_id>/editar/", rrhh_ingreso_editar, name="rrhh_ingreso_editar"),

@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 class Usuario(models.Model):
     id = models.AutoField(primary_key=True)
@@ -149,3 +150,33 @@ class RequerimientoJefe(models.Model):
     class Meta:
         managed = False
         db_table = "requerimiento_jefe"
+
+
+class Notificacion(models.Model):
+    id = models.AutoField(primary_key=True)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        db_column="usuario_id",
+        related_name="notificaciones_onboarding",
+    )
+    ingreso = models.ForeignKey(
+        Ingreso,
+        on_delete=models.CASCADE,
+        db_column="ingreso_id",
+        blank=True,
+        null=True,
+    )
+    titulo = models.CharField(max_length=160)
+    mensaje = models.TextField()
+    url = models.CharField(max_length=500)
+    leida = models.BooleanField(default=False)
+    fecha_creacion = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = "notificacion"
+        ordering = ["leida", "-fecha_creacion"]
+
+    def __str__(self):
+        return self.titulo

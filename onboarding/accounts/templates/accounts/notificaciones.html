@@ -1,0 +1,69 @@
+{% if notificaciones %}
+  <div class="notif-card">
+    <div class="notif-head">
+      <b>Notificaciones</b>
+      <span>{{ notificaciones_pendientes|default:"0" }} pendientes</span>
+    </div>
+    <div class="notif-list">
+      {% for n in notificaciones %}
+        <a class="notif-item{% if not n.leida %} unread{% endif %}" href="{% url 'notificacion_abrir' n.id %}">
+          <span class="notif-title">{{ n.titulo }}</span>
+          <span class="notif-msg">{{ n.mensaje }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+  <style>
+    .notif-card{
+      margin:0 0 16px;
+      background:rgba(255,255,255,.94);
+      border:1px solid rgba(255,255,255,.38);
+      border-radius:16px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .notif-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:12px 14px;
+      border-bottom:1px solid #eee;
+      color:#0b3a6e;
+      font-size:13px;
+    }
+    .notif-head span{
+      padding:6px 10px;
+      border-radius:999px;
+      background:#eff6ff;
+      border:1px solid #dbeafe;
+      font-size:12px;
+      font-weight:800;
+    }
+    .notif-list{ display:grid; gap:0; }
+    .notif-item{
+      display:grid;
+      gap:3px;
+      padding:11px 14px;
+      color:#1f2937;
+      text-decoration:none;
+      border-bottom:1px solid #f1f5f9;
+      background:#fff;
+    }
+    .notif-item:last-child{ border-bottom:none; }
+    .notif-item.unread{
+      border-left:4px solid var(--accent2);
+      background:#f8fbff;
+    }
+    .notif-title{
+      font-weight:900;
+      color:#0b3a6e;
+      font-size:13px;
+    }
+    .notif-msg{
+      color:#64748b;
+      font-size:12px;
+      line-height:1.35;
+    }
+  </style>
+{% endif %}

@@ -1,0 +1,79 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Importar historico</title>
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <style>
+    body{margin:0;font-family:system-ui;background:linear-gradient(120deg,var(--bg1),var(--bg2));min-height:100vh;padding:24px;color:#1f2937}
+    .wrap{max-width:900px;margin:0 auto}
+    .card{background:#fff;border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+    .head{padding:16px 18px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;gap:12px}
+    h2{margin:0;color:#0b3a6e;font-size:16px}
+    .body{padding:16px 18px;display:grid;gap:14px}
+    .btn{border:none;cursor:pointer;padding:10px 14px;border-radius:999px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center}
+    .btn.primary{color:#fff;background:linear-gradient(90deg,var(--accent2),var(--accent))}
+    .btn.ghost{background:#eff6ff;border:1px solid #dbeafe;color:#0b3a6e}
+    input[type="file"]{width:100%;padding:11px 12px;border-radius:12px;border:1px solid #e6e6e6;background:#fff}
+    label{font-size:13px;font-weight:800;color:#0b3a6e}
+    .box{border:1px solid #dbeafe;background:#f8fbff;border-radius:14px;padding:12px}
+    .box p{margin:0 0 8px}
+    code{background:#eef2ff;border:1px solid #dbeafe;border-radius:8px;padding:2px 5px}
+    .result{border:1px solid #bbf7d0;background:#f0fdf4;color:#14532d;border-radius:14px;padding:12px}
+    .error{border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:14px;padding:12px}
+    .actions{display:flex;justify-content:flex-end;gap:10px;padding:14px 18px;border-top:1px solid #eee}
+    ul{margin:8px 0 0;padding-left:20px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="head">
+        <h2>Importar histórico de procesos</h2>
+        <a class="btn ghost" href="{% url 'rrhh_ingresos_listar' %}">Volver</a>
+      </div>
+
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="body">
+          <div class="box">
+            <p><b>Formato aceptado:</b> CSV o Excel (.xlsx).</p>
+            <p>Columnas mínimas: <code>nombre_empleado</code>, <code>documento</code>, <code>fecha_ingreso</code> y <code>puesto_organizacional_id</code> o <code>puesto</code>.</p>
+            <p>Opcionales: <code>codigo_proceso</code>, <code>tipo_documento</code>, <code>estado</code>, <code>area</code>.</p>
+          </div>
+
+          {% if error %}
+            <div class="error">{{ error }}</div>
+          {% endif %}
+
+          {% if resultado %}
+            <div class="result">
+              <b>Importación completada.</b><br>
+              Creados: {{ resultado.creados }} · Actualizados: {{ resultado.actualizados }} · Omitidos: {{ resultado.omitidos|length }}
+              {% if resultado.omitidos %}
+                <ul>
+                  {% for item in resultado.omitidos|slice:":10" %}
+                    <li>{{ item }}</li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          <div>
+            <label>{{ form.archivo.label }}</label>
+            {{ form.archivo }}
+          </div>
+          <label>{{ form.actualizar_existentes }} {{ form.actualizar_existentes.label }}</label>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" type="submit">Importar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

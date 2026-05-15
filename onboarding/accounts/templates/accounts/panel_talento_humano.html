@@ -26,6 +26,7 @@
       <div class="tag">Pendientes: {{ pendientes }}</div>
     </div>
     <div class="body">
+      {% include "accounts/notificaciones.html" %}
       <div class="row headr"><div>Proceso</div><div>Empleado</div><div>Area</div><div>Accion</div></div>
       {% for i in ingresos %}
         <div class="row">

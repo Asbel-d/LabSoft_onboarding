@@ -28,6 +28,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
 DEBUG = os.environ.get("DEBUG", "0") == "1"
 
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+SITE_URL = os.environ.get("SITE_URL", "http://127.0.0.1:8000")
 
 
 # Application definition
@@ -83,7 +84,7 @@ DATABASES = {
             "postgresql://postgres:12345@localhost:5432/onboarding_db"
         ),
         conn_max_age=600,
-        ssl_require=True
+        ssl_require=bool(os.environ.get("DATABASE_URL"))
     )
 }
 
@@ -128,3 +129,19 @@ LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/rrhh/'
 LOGOUT_REDIRECT_URL = '/login/'
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.smtp.EmailBackend" if os.environ.get("EMAIL_HOST") else "django.core.mail.backends.console.EmailBackend",
+)
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "1") == "1"
+EMAIL_USE_SSL = os.environ.get("EMAIL_USE_SSL", "0") == "1"
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "notificaciones@onboarding.local")
+
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.2")
+OPENAI_TIMEOUT_SECONDS = int(os.environ.get("OPENAI_TIMEOUT_SECONDS", "12"))

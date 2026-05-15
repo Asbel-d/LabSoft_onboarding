@@ -17,7 +17,7 @@
     .btn.ghost{ background:#eff6ff; border:1px solid #dbeafe; color:#0b3a6e; }
     .body{ padding:14px 18px; }
     form.filter{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-    select{ padding:10px 12px; border-radius:12px; border:1px solid #e6e6e6; background:#fff; font-size:13px; min-width:240px; }
+    select,input[type="date"]{ padding:10px 12px; border-radius:12px; border:1px solid #e6e6e6; background:#fff; font-size:13px; min-width:180px; }
     table{ width:100%; border-collapse:separate; border-spacing:0 10px; }
     th{ text-align:left; font-size:12px; color:#666; padding:8px 10px; }
     td{ padding:12px 10px; background:#fff; border-top:1px solid #eee; border-bottom:1px solid #eee; }
@@ -52,7 +52,10 @@
             <option value="FINALIZADO" {% if estado == "FINALIZADO" %}selected{% endif %}>FINALIZADO</option>
             <option value="CANCELADO" {% if estado == "CANCELADO" %}selected{% endif %}>CANCELADO</option>
           </select>
+          <input type="date" name="fecha_desde" value="{{ fecha_desde }}" aria-label="Fecha desde">
+          <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}" aria-label="Fecha hasta">
           <button class="btn ghost" type="submit">Filtrar</button>
+          <a class="btn ghost" href="{% url 'rrhh_importar_historico' %}">Importar histórico</a>
           <a class="btn primary" href="{% url 'rrhh_ingreso_crear' %}">Crear ingreso</a>
           <a class="btn ghost" href="{% url 'panel_rrhh' %}">Volver</a>
         </form>
@@ -66,6 +69,7 @@
               <th>Empleado</th>
               <th>Área</th>
               <th>Jefe</th>
+              <th>Fecha</th>
               <th>Estado</th>
               <th style="width:220px;">Acciones</th>
             </tr>
@@ -88,6 +92,7 @@
                     Sin asignar
                   {% endif %}
                 </td>
+                <td>{{ i.fecha_ingreso|date:"d/m/Y" }}</td>
                 <td><span class="tag">{{ i.estado }}</span></td>
                 <td>
                   <div class="actions">
@@ -109,7 +114,7 @@
               </tr>
             {% empty %}
               <tr>
-                <td colspan="6" style="background:#fff;border:1px solid #eee;border-radius:14px;padding:14px;">
+                <td colspan="7" style="background:#fff;border:1px solid #eee;border-radius:14px;padding:14px;">
                   No hay ingresos para mostrar.
                 </td>
               </tr>

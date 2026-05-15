@@ -3,6 +3,25 @@ from django.utils import timezone
 from .models import CatalogoItem
 from .models import Ingreso
 
+
+TIPOS_DOCUMENTO = [
+    ("C.C", "C.C"),
+    ("C.E", "C.E"),
+    ("PASAPORTE", "PASAPORTE"),
+]
+
+
+def generar_codigo_proceso():
+    fecha = timezone.localdate().strftime("%Y%m%d")
+    ultimo_ingreso = Ingreso.objects.order_by("-id").first()
+    consecutivo = (ultimo_ingreso.id + 1) if ultimo_ingreso else 1
+
+    while True:
+        codigo = f"ING-{fecha}-{consecutivo:04d}"
+        if not Ingreso.objects.filter(codigo_proceso=codigo).exists():
+            return codigo
+        consecutivo += 1
+
 class SeleccionCursosAppsForm(forms.Form):
     cursos = forms.ModelMultipleChoiceField(
         queryset=CatalogoItem.objects.filter(tipo="CURSO").order_by("nombre"),
@@ -63,10 +82,30 @@ class SeleccionAplicativosForm(forms.Form):
         label="Aplicativos"
     )
 
+
+class ImportarHistoricoForm(forms.Form):
+    archivo = forms.FileField(
+        label="Archivo historico",
+        help_text="Sube un archivo .csv o .xlsx exportado desde la base anterior.",
+    )
+    actualizar_existentes = forms.BooleanField(
+        required=False,
+        initial=True,
+        label="Actualizar procesos existentes por codigo",
+    )
+
+
 class IngresoForm(forms.ModelForm):
     def __init__(self, *args, allow_past_date=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.allow_past_date = allow_past_date
+        self.fields["tipo_documento"].choices = TIPOS_DOCUMENTO
+        self.fields["codigo_proceso"].widget.attrs["readonly"] = "readonly"
+        self.fields["codigo_proceso"].required = False
+
+        if not self.instance.pk and not self.initial.get("codigo_proceso"):
+            self.initial["codigo_proceso"] = generar_codigo_proceso()
+
         if not allow_past_date:
             self.fields["fecha_ingreso"].widget.attrs["min"] = timezone.localdate().isoformat()
 
@@ -78,7 +117,12 @@ class IngresoForm(forms.ModelForm):
         ]
         widgets = {
             "fecha_ingreso": forms.DateInput(attrs={"type": "date"}),
+            "tipo_documento": forms.Select(choices=TIPOS_DOCUMENTO),
         }
+
+    def clean_codigo_proceso(self):
+        codigo_proceso = self.cleaned_data.get("codigo_proceso")
+        return codigo_proceso or generar_codigo_proceso()
 
     def clean_fecha_ingreso(self):
         fecha_ingreso = self.cleaned_data.get("fecha_ingreso")

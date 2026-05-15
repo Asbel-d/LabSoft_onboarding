@@ -217,6 +217,7 @@
       </header>
 
       <section class="content">
+        {% include "accounts/notificaciones.html" %}
         <div class="grid">
 
           <!-- Columna grande -->
@@ -228,7 +229,6 @@
             <div class="cardbody">
               <div class="list">
 
-                <!-- SIDGN-4 -->
                 <div class="item">
                   <div class="meta">
                     <b>Crear proceso de ingreso</b>
@@ -237,7 +237,6 @@
                   <a class="btn" href="{% url 'rrhh_ingreso_crear' %}">Crear</a>
                 </div>
 
-                <!-- SIDGN-5 -->
                 <div class="item">
                   <div class="meta">
                     <b>Editar proceso de ingreso</b>
@@ -246,7 +245,6 @@
                   <a class="btn ghost" href="{% url 'rrhh_ingresos_listar' %}">Editar desde lista</a>
                 </div>
 
-                <!-- SIDGN-6 -->
                 <div class="item">
                   <div class="meta">
                     <b>Cancelar proceso de ingreso</b>
@@ -255,7 +253,6 @@
                   <a class="btn ghost" href="{% url 'rrhh_ingresos_listar' %}">Cancelar desde lista</a>
                 </div>
 
-                <!-- SIDGN-7 -->
                 <div class="item">
                   <div class="meta">
                     <b>Visualizar ingresos por departamento</b>

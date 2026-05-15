@@ -1,13 +1,30 @@
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth import get_user_model
+from django.conf import settings
+from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Count
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils.dateparse import parse_date
 from django.utils import timezone
 from difflib import SequenceMatcher
+import csv
+from datetime import datetime
+from io import StringIO
+import json
 import unicodedata
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
-from .forms import IngresoForm, SeleccionAplicativosForm, SeleccionCursosAppsForm
+from .forms import (
+    ImportarHistoricoForm,
+    IngresoForm,
+    SeleccionAplicativosForm,
+    SeleccionCursosAppsForm,
+    generar_codigo_proceso,
+)
 from .models import (
     Area,
     AsignacionPuestoFisico,
@@ -16,6 +33,7 @@ from .models import (
     IngresoAplicacion,
     IngresoCurso,
     IngresoDotacion,
+    Notificacion,
     PuestoFisico,
     PuestoOrganizacional,
     RequerimientoJefe,
@@ -112,6 +130,149 @@ def _ensure_default_office_seats():
         )
 
 
+def _notificaciones_usuario(user, limit=5):
+    if not user.is_authenticated:
+        return {
+            "notificaciones": [],
+            "notificaciones_pendientes": 0,
+        }
+
+    queryset = Notificacion.objects.filter(usuario_id=user.id)
+    return {
+        "notificaciones": queryset.order_by("leida", "-fecha_creacion")[:limit],
+        "notificaciones_pendientes": queryset.filter(leida=False).count(),
+    }
+
+
+def _render_with_notifications(request, template_name, context):
+    context.update(_notificaciones_usuario(request.user))
+    return render(request, template_name, context)
+
+
+def _absolute_notification_url(url):
+    if str(url).startswith(("http://", "https://")):
+        return url
+    return f"{settings.SITE_URL.rstrip('/')}/{str(url).lstrip('/')}"
+
+
+def _enviar_correo_notificacion(usuario, titulo, mensaje, url):
+    email = (getattr(usuario, "email", "") or "").strip()
+    if not email:
+        return
+
+    enlace = _absolute_notification_url(url)
+    cuerpo = (
+        f"{mensaje}\n\n"
+        f"Puedes revisar el proceso en este enlace:\n{enlace}\n\n"
+        "Este mensaje fue generado automaticamente por el sistema de onboarding."
+    )
+
+    send_mail(
+        subject=titulo,
+        message=cuerpo,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[email],
+        fail_silently=True,
+    )
+
+
+def _crear_notificacion(usuario, ingreso, titulo, mensaje, url):
+    if not usuario or not getattr(usuario, "is_active", True):
+        return
+
+    _, creada = Notificacion.objects.get_or_create(
+        usuario=usuario,
+        ingreso=ingreso,
+        titulo=titulo,
+        url=url,
+        leida=False,
+        defaults={
+            "mensaje": mensaje,
+            "fecha_creacion": timezone.now(),
+        },
+    )
+    if creada:
+        _enviar_correo_notificacion(usuario, titulo, mensaje, url)
+
+
+def _notificar_grupo(group_names, ingreso, titulo, mensaje, url):
+    User = get_user_model()
+    usuarios = (
+        User.objects
+        .filter(is_active=True, groups__name__in=group_names)
+        .distinct()
+    )
+    for usuario in usuarios:
+        _crear_notificacion(usuario, ingreso, titulo, mensaje, url)
+
+
+def _notificar_jefe_ingreso(ingreso):
+    ingreso = (
+        Ingreso.objects
+        .select_related("puesto_organizacional__area__jefe_usuario")
+        .get(id=ingreso.id)
+    )
+    jefe_negocio = ingreso.puesto_organizacional.area.jefe_usuario
+    if not jefe_negocio:
+        return
+    User = get_user_model()
+    jefe_auth = User.objects.filter(username=jefe_negocio.username, is_active=True).first()
+    if not jefe_auth:
+        return
+
+    _crear_notificacion(
+        jefe_auth,
+        ingreso,
+        f"Nuevo proceso {ingreso.codigo_proceso}",
+        f"RRHH creo el ingreso de {ingreso.nombre_empleado}. Revisa cursos, aplicativos y dotacion.",
+        reverse("jefe_seleccionar", args=[ingreso.id]),
+    )
+
+
+@login_required
+def notificacion_abrir(request, notificacion_id):
+    notificacion = get_object_or_404(
+        Notificacion,
+        id=notificacion_id,
+        usuario_id=request.user.id,
+    )
+    if not notificacion.leida:
+        notificacion.leida = True
+        notificacion.save(update_fields=["leida"])
+    return redirect(notificacion.url or "home")
+
+
+def _notificar_areas_ejecucion(ingreso, cursos_sel, apps_sel, dotaciones_sel, requiere_puesto):
+    proceso_en_ejecucion = cursos_sel.exists() and apps_sel.exists()
+
+    if cursos_sel.exists():
+        _notificar_grupo(
+            ["RRHH"],
+            ingreso,
+            f"Cursos por asignar: {ingreso.codigo_proceso}",
+            f"El jefe selecciono cursos para {ingreso.nombre_empleado}.",
+            reverse("rrhh_asignar_cursos", args=[ingreso.id]),
+        )
+
+    if proceso_en_ejecucion and apps_sel.exists():
+        _notificar_grupo(
+            ["TECNOLOGIA"],
+            ingreso,
+            f"Aplicativos por asignar: {ingreso.codigo_proceso}",
+            f"El jefe solicito aplicativos para {ingreso.nombre_empleado}.",
+            reverse("tecnologia_asignar_aplicativos", args=[ingreso.id]),
+        )
+
+    if proceso_en_ejecucion and (dotaciones_sel.exists() or requiere_puesto):
+        _notificar_grupo(
+            ["SERVICIOS", "Servicio generales"],
+            ingreso,
+            f"Servicios generales: {ingreso.codigo_proceso}",
+            f"El jefe solicito dotacion o puesto fisico para {ingreso.nombre_empleado}.",
+            reverse("servicios_finalizar_ingreso", args=[ingreso.id]),
+        )
+
+
 def _office_seats_for_ingreso(ingreso):
     _ensure_default_office_seats()
     current_assignment = (
@@ -146,7 +307,7 @@ def _normalize_text(value):
     return text.lower()
 
 
-def _score_catalog_items(candidates, keywords, limit=4):
+def _score_catalog_items(candidates, keywords, limit=None):
     scored = []
     normalized_keywords = [_normalize_text(keyword) for keyword in keywords]
 
@@ -164,10 +325,12 @@ def _score_catalog_items(candidates, keywords, limit=4):
             scored.append((score, item))
 
     scored.sort(key=lambda pair: (-pair[0], pair[1].nombre))
+    if limit is None:
+        return [item for _, item in scored]
     return [item for _, item in scored[:limit]]
 
 
-def _merge_unique_items(primary, secondary, limit):
+def _merge_unique_items(primary, secondary, limit=None):
     seen = set()
     merged = []
 
@@ -176,13 +339,13 @@ def _merge_unique_items(primary, secondary, limit):
             continue
         seen.add(item.id)
         merged.append(item)
-        if len(merged) >= limit:
+        if limit is not None and len(merged) >= limit:
             break
 
     return merged
 
 
-def _historical_area_items(area_id, item_type, limit=4):
+def _historical_area_items(area_id, item_type, limit=None):
     if not area_id:
         return []
 
@@ -192,8 +355,10 @@ def _historical_area_items(area_id, item_type, limit=4):
             .filter(ingreso__puesto_organizacional__area_id=area_id)
             .values("curso_id")
             .annotate(total=Count("id"))
-            .order_by("-total", "curso_id")[:limit]
+            .order_by("-total", "curso_id")
         )
+        if limit is not None:
+            rows = rows[:limit]
         ids = [row["curso_id"] for row in rows]
     else:
         rows = (
@@ -201,8 +366,10 @@ def _historical_area_items(area_id, item_type, limit=4):
             .filter(ingreso__puesto_organizacional__area_id=area_id)
             .values("aplicacion_id")
             .annotate(total=Count("id"))
-            .order_by("-total", "aplicacion_id")[:limit]
+            .order_by("-total", "aplicacion_id")
         )
+        if limit is not None:
+            rows = rows[:limit]
         ids = [row["aplicacion_id"] for row in rows]
 
     if not ids:
@@ -215,6 +382,227 @@ def _historical_area_items(area_id, item_type, limit=4):
     return [items_by_id[item_id] for item_id in ids if item_id in items_by_id]
 
 
+def _catalog_payload(items):
+    return [{"id": item.id, "nombre": item.nombre} for item in items]
+
+
+def _extract_response_text(response_data):
+    if response_data.get("output_text"):
+        return response_data["output_text"]
+
+    texts = []
+    for output in response_data.get("output", []):
+        for content in output.get("content", []):
+            if content.get("type") in ["output_text", "text"] and content.get("text"):
+                texts.append(content["text"])
+    return "\n".join(texts).strip()
+
+
+def _openai_catalog_suggestions(area_name, puesto_name, cursos, aplicativos):
+    if not settings.OPENAI_API_KEY:
+        return None
+
+    input_payload = {
+        "area": area_name,
+        "cargo": puesto_name,
+        "cursos_disponibles": _catalog_payload(cursos),
+        "aplicativos_disponibles": _catalog_payload(aplicativos),
+    }
+    prompt = (
+        "Eres un asistente de onboarding empresarial. Recomienda solamente IDs existentes "
+        "del catalogo recibido. Elige todos los cursos y aplicativos que sean realmente "
+        "necesarios para el area y cargo, sin agregar opciones de relleno. No inventes "
+        "opciones. Responde estrictamente en JSON."
+        f"\n\nDatos:\n{json.dumps(input_payload, ensure_ascii=False)}"
+    )
+    request_body = {
+        "model": settings.OPENAI_MODEL,
+        "input": prompt,
+        "text": {
+            "format": {
+                "type": "json_schema",
+                "name": "sugerencias_onboarding",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "cursos": {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                        },
+                        "aplicativos": {
+                            "type": "array",
+                            "items": {"type": "integer"},
+                        },
+                    },
+                    "required": ["cursos", "aplicativos"],
+                },
+            }
+        },
+    }
+    request = Request(
+        "https://api.openai.com/v1/responses",
+        data=json.dumps(request_body).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urlopen(request, timeout=settings.OPENAI_TIMEOUT_SECONDS) as response:
+            response_data = json.loads(response.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, ValueError):
+        return None
+
+    try:
+        parsed = json.loads(_extract_response_text(response_data))
+    except (TypeError, json.JSONDecodeError):
+        return None
+
+    cursos_ids = [int(item_id) for item_id in parsed.get("cursos", []) if str(item_id).isdigit()]
+    aplicativos_ids = [int(item_id) for item_id in parsed.get("aplicativos", []) if str(item_id).isdigit()]
+    valid_cursos_ids = {item.id for item in cursos}
+    valid_apps_ids = {item.id for item in aplicativos}
+    return {
+        "cursos": [item_id for item_id in cursos_ids if item_id in valid_cursos_ids],
+        "aplicativos": [item_id for item_id in aplicativos_ids if item_id in valid_apps_ids],
+    }
+
+
+def _items_by_ids(items, ids):
+    items_by_id = {item.id: item for item in items}
+    return [items_by_id[item_id] for item_id in ids if item_id in items_by_id]
+
+
+def _clean_import_value(value):
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _read_import_rows(uploaded_file):
+    filename = uploaded_file.name.lower()
+    if filename.endswith(".csv"):
+        content = uploaded_file.read().decode("utf-8-sig")
+        return list(csv.DictReader(StringIO(content)))
+
+    if filename.endswith(".xlsx"):
+        try:
+            from openpyxl import load_workbook
+        except ImportError as exc:
+            raise ValueError("Para importar Excel instala la dependencia openpyxl.") from exc
+
+        workbook = load_workbook(uploaded_file, read_only=True, data_only=True)
+        sheet = workbook.active
+        headers = [_clean_import_value(cell.value) for cell in next(sheet.iter_rows(max_row=1))]
+        rows = []
+        for row in sheet.iter_rows(min_row=2):
+            rows.append({
+                headers[index]: _clean_import_value(cell.value)
+                for index, cell in enumerate(row)
+                if index < len(headers) and headers[index]
+            })
+        return rows
+
+    raise ValueError("El archivo debe ser .csv o .xlsx.")
+
+
+def _row_get(row, *keys):
+    normalized_row = {_normalize_text(key): value for key, value in row.items()}
+    for key in keys:
+        value = normalized_row.get(_normalize_text(key))
+        if _clean_import_value(value):
+            return _clean_import_value(value)
+    return ""
+
+
+def _parse_import_date(value):
+    value = _clean_import_value(value)
+    if not value:
+        return None
+    parsed = parse_date(value)
+    if parsed:
+        return parsed
+    for date_format in ["%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d", "%m/%d/%Y", "%Y-%m-%d %H:%M:%S"]:
+        try:
+            return datetime.strptime(value, date_format).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _find_import_puesto(row):
+    puesto_id = _row_get(row, "puesto_organizacional_id", "puesto_id")
+    if puesto_id.isdigit():
+        puesto = PuestoOrganizacional.objects.filter(id=int(puesto_id)).first()
+        if puesto:
+            return puesto
+
+    puesto_nombre = _row_get(row, "puesto_organizacional", "puesto", "cargo")
+    area_nombre = _row_get(row, "area", "departamento")
+    if not puesto_nombre:
+        return None
+
+    puestos = PuestoOrganizacional.objects.select_related("area").all()
+    normalized_puesto = _normalize_text(puesto_nombre)
+    normalized_area = _normalize_text(area_nombre)
+
+    for puesto in puestos:
+        if _normalize_text(puesto.nombre_puesto) != normalized_puesto:
+            continue
+        if normalized_area and _normalize_text(puesto.area.nombre) != normalized_area:
+            continue
+        return puesto
+    return None
+
+
+def _import_historical_rows(rows, actualizar_existentes=True):
+    result = {"creados": 0, "actualizados": 0, "omitidos": []}
+
+    for index, row in enumerate(rows, start=2):
+        nombre = _row_get(row, "nombre_empleado", "empleado", "nombre")
+        documento = _row_get(row, "documento", "numero_documento", "identificacion")
+        fecha_ingreso = _parse_import_date(_row_get(row, "fecha_ingreso", "fecha_proceso", "fecha"))
+        puesto = _find_import_puesto(row)
+
+        if not nombre or not documento or not fecha_ingreso or not puesto:
+            result["omitidos"].append(
+                f"Fila {index}: faltan nombre_empleado, documento, fecha_ingreso o puesto."
+            )
+            continue
+
+        codigo = _row_get(row, "codigo_proceso", "codigo", "proceso") or generar_codigo_proceso()
+        tipo_documento = _row_get(row, "tipo_documento", "tipo_doc") or "C.C"
+        estado = _row_get(row, "estado") or "FINALIZADO"
+
+        defaults = {
+            "nombre_empleado": nombre,
+            "tipo_documento": tipo_documento,
+            "documento": documento,
+            "fecha_ingreso": fecha_ingreso,
+            "puesto_organizacional": puesto,
+            "estado": estado,
+        }
+        existing = Ingreso.objects.filter(codigo_proceso=codigo).first()
+        if existing:
+            if not actualizar_existentes:
+                result["omitidos"].append(f"Fila {index}: el codigo {codigo} ya existe.")
+                continue
+            for field, value in defaults.items():
+                setattr(existing, field, value)
+            existing.save()
+            result["actualizados"] += 1
+            continue
+
+        Ingreso.objects.create(codigo_proceso=codigo, **defaults)
+        result["creados"] += 1
+
+    return result
+
+
 def _build_ai_suggestions(area_name="", puesto_name="", area_id=None):
     area_text = f"{area_name} {puesto_name}".strip()
     normalized_text = _normalize_text(area_text)
@@ -222,6 +610,7 @@ def _build_ai_suggestions(area_name="", puesto_name="", area_id=None):
     catalogo = list(CatalogoItem.objects.all().order_by("tipo", "nombre"))
     cursos = [item for item in catalogo if item.tipo == "CURSO"]
     aplicativos = [item for item in catalogo if item.tipo == "APLICACION"]
+    ai_suggestions = _openai_catalog_suggestions(area_name, puesto_name, cursos, aplicativos)
 
     selected_rule = None
     for rule in SUGGESTION_RULES:
@@ -229,24 +618,33 @@ def _build_ai_suggestions(area_name="", puesto_name="", area_id=None):
             selected_rule = rule
             break
 
-    historical_cursos = _historical_area_items(area_id, "CURSO", limit=4)
-    historical_apps = _historical_area_items(area_id, "APLICACION", limit=3)
+    historical_cursos = _historical_area_items(area_id, "CURSO")
+    historical_apps = _historical_area_items(area_id, "APLICACION")
 
     if selected_rule:
-        rule_cursos = _score_catalog_items(cursos, selected_rule["cursos"], limit=4)
-        rule_apps = _score_catalog_items(aplicativos, selected_rule["aplicativos"], limit=3)
+        rule_cursos = _score_catalog_items(cursos, selected_rule["cursos"])
+        rule_apps = _score_catalog_items(aplicativos, selected_rule["aplicativos"])
     else:
         fallback_keywords = [word for word in normalized_text.split() if len(word) > 3]
-        rule_cursos = _score_catalog_items(cursos, fallback_keywords or [area_text], limit=4)
-        rule_apps = _score_catalog_items(aplicativos, fallback_keywords or [area_text], limit=3)
+        rule_cursos = _score_catalog_items(cursos, fallback_keywords or [area_text])
+        rule_apps = _score_catalog_items(aplicativos, fallback_keywords or [area_text])
 
-    suggested_cursos = _merge_unique_items(historical_cursos, rule_cursos, limit=4)
-    suggested_apps = _merge_unique_items(historical_apps, rule_apps, limit=3)
+    suggested_cursos = _merge_unique_items(historical_cursos, rule_cursos)
+    suggested_apps = _merge_unique_items(historical_apps, rule_apps)
+    source = "Reglas"
+
+    if ai_suggestions:
+        ai_cursos = _items_by_ids(cursos, ai_suggestions["cursos"])
+        ai_apps = _items_by_ids(aplicativos, ai_suggestions["aplicativos"])
+        suggested_cursos = _merge_unique_items(ai_cursos, suggested_cursos)
+        suggested_apps = _merge_unique_items(ai_apps, suggested_apps)
+        source = "IA"
 
     return {
         "label": area_text or "Área no identificada",
         "cursos": [{"id": item.id, "nombre": item.nombre} for item in suggested_cursos],
         "aplicativos": [{"id": item.id, "nombre": item.nombre} for item in suggested_apps],
+        "fuente": source,
     }
 
 
@@ -294,7 +692,7 @@ def redireccion_por_rol(request):
 def panel_rrhh(request):
     _sync_ingreso_states()
     ingresos = Ingreso.objects.all()
-    return render(request, "accounts/panel_rrhh.html", {
+    return _render_with_notifications(request, "accounts/panel_rrhh.html", {
         "total_ingresos": ingresos.count(),
         "pendientes_jefe": ingresos.filter(estado="PENDIENTE_JEFE").count(),
         "en_ejecucion": ingresos.filter(estado="EN_EJECUCION").count(),
@@ -342,7 +740,7 @@ def panel_jefe(request):
 
     area_nombres = [area.nombre for area in areas_a_cargo]
 
-    return render(request, "accounts/panel_jefe.html", {
+    return _render_with_notifications(request, "accounts/panel_jefe.html", {
         "ingresos": ingresos_pendientes,
         "areas": area_nombres,
         "areas_texto": ", ".join(area_nombres) if area_nombres else "Sin áreas asignadas",
@@ -411,6 +809,7 @@ def jefe_seleccionar(request, ingreso_id: int):
                 else:
                     ingreso.estado = "PENDIENTE_JEFE"
                 ingreso.save(update_fields=["estado"])
+                _notificar_areas_ejecucion(ingreso, cursos_sel, apps_sel, dotaciones_sel, requiere_puesto)
 
             return redirect("panel_jefe")
     else:
@@ -436,6 +835,7 @@ def jefe_seleccionar(request, ingreso_id: int):
         "sugeridos_aplicativos": sugerencias["aplicativos"],
         "sugeridos_cursos_ids": [item["id"] for item in sugerencias["cursos"]],
         "sugeridos_aplicativos_ids": [item["id"] for item in sugerencias["aplicativos"]],
+        "sugerencias_fuente": sugerencias["fuente"],
     })
 
 @login_required
@@ -462,6 +862,7 @@ def rrhh_ingreso_crear(request):
 
             ingreso.estado = "CREADO_RRHH"
             ingreso.save()
+            _notificar_jefe_ingreso(ingreso)
             return redirect("rrhh_ingresos_listar")
     else:
         form = IngresoForm()
@@ -473,14 +874,14 @@ def rrhh_ingreso_editar(request, ingreso_id):
     ingreso = get_object_or_404(Ingreso, id=ingreso_id)
 
     if request.method == "POST":
-        form = IngresoForm(request.POST, instance=ingreso, allow_past_date=True)
+        form = IngresoForm(request.POST, instance=ingreso)
         if form.is_valid():
             ingreso = form.save(commit=False)
 
             ingreso.save()
             return redirect("rrhh_ingresos_listar")
     else:
-        form = IngresoForm(instance=ingreso, allow_past_date=True)
+        form = IngresoForm(instance=ingreso)
 
     return render(request, "accounts/ingreso_form.html", {"form": form, "modo": "editar", "ingreso": ingreso})
 
@@ -490,13 +891,19 @@ def rrhh_ingresos_listar(request):
     _sync_ingreso_states()
     area_id = request.GET.get("area")
     estado = request.GET.get("estado")
+    fecha_desde = request.GET.get("fecha_desde")
+    fecha_hasta = request.GET.get("fecha_hasta")
 
-    ingresos = Ingreso.objects.select_related("puesto_organizacional__area")
+    ingresos = Ingreso.objects.select_related("puesto_organizacional__area").order_by("-fecha_ingreso", "-id")
 
     if area_id:
         ingresos = ingresos.filter(puesto_organizacional__area_id=area_id)
     if estado:
         ingresos = ingresos.filter(estado=estado)
+    if fecha_desde:
+        ingresos = ingresos.filter(fecha_ingreso__gte=fecha_desde)
+    if fecha_hasta:
+        ingresos = ingresos.filter(fecha_ingreso__lte=fecha_hasta)
 
     areas = Area.objects.all().order_by("nombre")
 
@@ -508,8 +915,37 @@ def rrhh_ingresos_listar(request):
             "areas": areas,
             "area_id": area_id,
             "estado": estado,
+            "fecha_desde": fecha_desde,
+            "fecha_hasta": fecha_hasta,
         }
     )
+
+
+@login_required
+@user_passes_test(es_rrhh, login_url="/login/")
+def rrhh_importar_historico(request):
+    resultado = None
+    error = None
+
+    if request.method == "POST":
+        form = ImportarHistoricoForm(request.POST, request.FILES)
+        if form.is_valid():
+            try:
+                rows = _read_import_rows(form.cleaned_data["archivo"])
+                resultado = _import_historical_rows(
+                    rows,
+                    actualizar_existentes=form.cleaned_data["actualizar_existentes"],
+                )
+            except ValueError as exc:
+                error = str(exc)
+    else:
+        form = ImportarHistoricoForm()
+
+    return render(request, "accounts/importar_historico.html", {
+        "form": form,
+        "resultado": resultado,
+        "error": error,
+    })
 
 
 @login_required
@@ -556,7 +992,7 @@ def panel_tecnologia(request):
         .order_by("-fecha_ingreso", "-id")
     )
 
-    return render(request, "accounts/panel_tecnologia.html", {
+    return _render_with_notifications(request, "accounts/panel_tecnologia.html", {
         "ingresos": ingresos,
         "pendientes_instalacion": ingresos.count(),
     })
@@ -599,7 +1035,7 @@ def panel_talento_humano(request):
         .distinct()
         .order_by("-fecha_ingreso", "-id")
     )
-    return render(request, "accounts/panel_talento_humano.html", {
+    return _render_with_notifications(request, "accounts/panel_talento_humano.html", {
         "ingresos": ingresos,
         "pendientes": ingresos.count(),
     })
@@ -644,7 +1080,7 @@ def panel_servicios(request):
         requerimientojefe__isnull=False
     )
     ingresos = ingresos.distinct().order_by("-fecha_ingreso", "-id")
-    return render(request, "accounts/panel_servicios.html", {
+    return _render_with_notifications(request, "accounts/panel_servicios.html", {
         "ingresos": ingresos,
         "pendientes": ingresos.count(),
     })
