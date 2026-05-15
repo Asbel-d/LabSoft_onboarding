@@ -160,22 +160,61 @@ def _absolute_notification_url(url):
     return f"{settings.SITE_URL.rstrip('/')}/{str(url).lstrip('/')}"
 
 
-def _enviar_correo_notificacion(usuario, titulo, mensaje, url):
-    email = (getattr(usuario, "email", "") or "").strip()
-    if not email:
-        return
-
+def _notification_body(mensaje, url):
     enlace = _absolute_notification_url(url)
-    cuerpo = (
+    return (
         f"{mensaje}\n\n"
         f"Puedes revisar el proceso en este enlace:\n{enlace}\n\n"
         "Este mensaje fue generado automaticamente por el sistema de onboarding."
     )
 
+
+def _notification_html(mensaje, url):
+    enlace = _absolute_notification_url(url)
+    return (
+        "<p>{mensaje}</p>"
+        "<p><a href=\"{enlace}\">Revisar proceso</a></p>"
+        "<p>Este mensaje fue generado automaticamente por el sistema de onboarding.</p>"
+    ).format(mensaje=mensaje, enlace=enlace)
+
+
+def _enviar_correo_resend(email, titulo, mensaje, url):
+    payload = {
+        "from": settings.DEFAULT_FROM_EMAIL,
+        "to": [email],
+        "subject": titulo,
+        "text": _notification_body(mensaje, url),
+        "html": _notification_html(mensaje, url),
+    }
+    request = Request(
+        settings.RESEND_API_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urlopen(request, timeout=settings.RESEND_TIMEOUT_SECONDS) as response:
+            response.read()
+        return True
+    except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
+        logger.warning(
+            "No se pudo enviar correo por Resend a %s: %s",
+            email,
+            exc,
+            exc_info=True,
+        )
+        return False
+
+
+def _enviar_correo_smtp(email, titulo, mensaje, url):
     try:
         send_mail(
             subject=titulo,
-            message=cuerpo,
+            message=_notification_body(mensaje, url),
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[email],
             fail_silently=False,
@@ -187,6 +226,18 @@ def _enviar_correo_notificacion(usuario, titulo, mensaje, url):
             exc,
             exc_info=True,
         )
+
+
+def _enviar_correo_notificacion(usuario, titulo, mensaje, url):
+    email = (getattr(usuario, "email", "") or "").strip()
+    if not email:
+        return
+
+    if settings.RESEND_API_KEY:
+        if _enviar_correo_resend(email, titulo, mensaje, url):
+            return
+
+    _enviar_correo_smtp(email, titulo, mensaje, url)
 
 
 def _crear_notificacion(usuario, ingreso, titulo, mensaje, url):
