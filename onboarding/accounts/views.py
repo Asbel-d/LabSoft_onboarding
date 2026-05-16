@@ -220,6 +220,53 @@ def _enviar_correo_resend(email, titulo, mensaje, url):
         return False
 
 
+def _enviar_correo_brevo(email, titulo, mensaje, url):
+    sender_email = settings.BREVO_SENDER_EMAIL or settings.DEFAULT_FROM_EMAIL
+    payload = {
+        "sender": {
+            "name": settings.BREVO_SENDER_NAME,
+            "email": sender_email,
+        },
+        "to": [{"email": email}],
+        "subject": titulo,
+        "textContent": _notification_body(mensaje, url),
+        "htmlContent": _notification_html(mensaje, url),
+    }
+    request = Request(
+        settings.BREVO_API_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "api-key": settings.BREVO_API_KEY,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urlopen(request, timeout=settings.BREVO_TIMEOUT_SECONDS) as response:
+            response.read()
+        return True
+    except HTTPError as exc:
+        error_body = exc.read().decode("utf-8", errors="replace")
+        logger.warning(
+            "No se pudo enviar correo por Brevo a %s: HTTP %s - %s",
+            email,
+            exc.code,
+            error_body,
+            exc_info=True,
+        )
+        return False
+    except (URLError, TimeoutError, OSError, ValueError) as exc:
+        logger.warning(
+            "No se pudo enviar correo por Brevo a %s: %s",
+            email,
+            exc,
+            exc_info=True,
+        )
+        return False
+
+
 def _enviar_correo_smtp(email, titulo, mensaje, url):
     try:
         send_mail(
@@ -241,6 +288,10 @@ def _enviar_correo_smtp(email, titulo, mensaje, url):
 def _enviar_correo_notificacion(usuario, titulo, mensaje, url):
     email = (getattr(usuario, "email", "") or "").strip()
     if not email:
+        return
+
+    if settings.BREVO_API_KEY:
+        _enviar_correo_brevo(email, titulo, mensaje, url)
         return
 
     if settings.RESEND_API_KEY:
